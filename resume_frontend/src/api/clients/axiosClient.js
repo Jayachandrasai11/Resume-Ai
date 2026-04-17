@@ -1,6 +1,7 @@
 import axios from 'axios';
 
-export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+const rawBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+export const API_BASE_URL = rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
 
 // Track if we're currently refreshing a token to prevent race conditions
 let isRefreshing = false;
