@@ -183,7 +183,7 @@ CORS_ALLOW_ALL_ORIGINS = os.getenv("DEBUG", "False") == "True"  # Only allow all
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://resume-kj1qfs3rk-dssjcs01-1765s-projects.vercel.app",
+    "https://resume-ai-git-main-dssjcs01-1765s-projects.vercel.app/",
 ] + [o for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
