@@ -72,7 +72,7 @@ mysql-connector-python==9.5.0
 narwhals==2.16.0
 networkx==3.4.2
 nltk==3.9.2
-numpy==2.3.4
+numpy==1.26.4
 openai==2.8.0
 packaging==25.0
 pandas==2.3.3
