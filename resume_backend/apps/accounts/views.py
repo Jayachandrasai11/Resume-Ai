@@ -36,6 +36,10 @@ class RegisterView(generics.CreateAPIView):
 class CustomTokenObtainPairView(TokenObtainPairView):
     serializer_class = CustomTokenObtainPairSerializer
 
+    def post(self, request, *args, **kwargs):
+        print("🚀 [DIAGNOSTIC] LOGIN API HIT")
+        return super().post(request, *args, **kwargs)
+
 class UserDetailView(generics.RetrieveUpdateAPIView):
     permission_classes = (permissions.IsAuthenticated,)
     serializer_class = UserSerializer

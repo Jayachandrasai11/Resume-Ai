@@ -108,7 +108,8 @@ urlpatterns = [
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 urlpatterns += static("/", document_root=settings.BASE_DIR.parent / "resume_frontend" / "dist")
 
-# Catch-all to serve React frontend for any other routes
+# Catch-all to serve React frontend for any other routes (Must NOT match /api/)
 urlpatterns += [
-    re_path(r'^.*$', TemplateView.as_view(template_name="index.html")),
+    re_path(r'^$', TemplateView.as_view(template_name="index.html")),
+    re_path(r'^(?!api/).*$', TemplateView.as_view(template_name="index.html")),
 ]
