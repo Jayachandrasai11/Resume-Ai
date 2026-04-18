@@ -42,14 +42,18 @@ class EmbeddingService:
         return cls._instance
 
     def __init__(self, model_name: str = MODEL_NAME):
-        """Initialize the service (only once due to singleton)."""
+        """Initialize the service lazily (model loads on first use)."""
         if self._is_initialized:
             return
 
         self.model_name = model_name
-        self._load_model()
         self._is_initialized = True
-        logger.info("✅ Embedding service initialized successfully")
+        logger.info("Embedding service setup (models will load lazily)")
+
+    def _ensure_initialized(self):
+        if not getattr(self, '_model_loaded', False):
+            self._load_model()
+            self._model_loaded = True
 
     def _load_model(self):
         """Load tokenizer and model - production-grade implementation."""
@@ -89,6 +93,8 @@ class EmbeddingService:
         Encode text(s) to embeddings.
         Handles single text and batch encoding.
         """
+        self._ensure_initialized()
+
         if not self._model or not self._tokenizer:
             logger.warning("Model or tokenizer not loaded, attempting to reload...")
             self._load_model()
