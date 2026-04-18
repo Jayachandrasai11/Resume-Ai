@@ -34,6 +34,7 @@ class RegisterView(generics.CreateAPIView):
         }, status=status.HTTP_201_CREATED)
 
 class CustomTokenObtainPairView(TokenObtainPairView):
+    permission_classes = (permissions.AllowAny,)
     serializer_class = CustomTokenObtainPairSerializer
 
     def post(self, request, *args, **kwargs):
