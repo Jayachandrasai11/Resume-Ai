@@ -187,18 +187,13 @@ CORS_ALLOWED_ORIGINS = [
     "https://resume-ai-git-main-dssjcs01-1765s-projects.vercel.app",
     "https://resume-ai-sable.vercel.app",
 ] + [o.rstrip('/') for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o]
-CORS_ALLOW_CREDENTIALS = True
-CORS_ALLOW_HEADERS = [
-    'accept',
-    'accept-encoding',
+from corsheaders.defaults import default_headers
+
+CORS_ALLOW_HEADERS = list(default_headers) + [
     'authorization',
-    'content-type',
-    'dnt',
-    'origin',
-    'user-agent',
     'x-csrftoken',
-    'x-requested-with',
 ]
+CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_METHODS = [
     'DELETE',
     'GET',
