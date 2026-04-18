@@ -200,6 +200,7 @@ http.interceptors.response.use(
           isRefreshing = false;
         }
       }
+    }
 
     // GLOBAL ERROR MAPPING
     if (error.response) {
