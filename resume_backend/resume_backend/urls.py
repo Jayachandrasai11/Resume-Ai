@@ -70,75 +70,45 @@ def favicon(request):
     """
     return JsonResponse({"favicon": "not_found"}, status=404)
 
-router = DefaultRouter()
-router.register(r"candidates", CandidateViewSet)
-router.register(r"resumes", ResumeViewSet)
-
 urlpatterns = [
-    path("", TemplateView.as_view(template_name="index.html"), name="landing"),
-    path("api/root", api_root, name="api-root"),
-    path("favicon.ico", favicon, name="favicon"),
+    # 🏛️ SYSTEM ADMIN & INFRASTRUCTURE
     path("admin/", admin.site.urls),
-    path('api/dashboard/', include('dashboard.urls')),
-    # Analytics API endpoints
-    path('api/analytics/hiring-trends', HiringTrendsNewAPIView.as_view(), name='analytics_hiring_trends'),
-    path('api/analytics/match-distribution', MatchDistributionAPIView.as_view(), name='analytics_match_distribution'),
-    path("api/admin/metrics", AdminMetricsAPIView.as_view(), name="admin-metrics"),
-    path("api/users", UserListAPIView.as_view(), name="user-list"),
-    path("api/users/<int:pk>", UserDetailAPIView.as_view(), name="user-detail"),
-    path("api/upload-resume/", ResumeUploadAPIView.as_view(), name="upload-resume"),
-    path("api/parse-resume/", ResumeParseAPIView.as_view(), name="parse-resume"),
-    path("api/candidate-summary/<int:candidate_id>/", CandidateSummaryAPIView.as_view(), name="candidate-summary"),
-    path("api/candidate-skills/<int:candidate_id>/", CandidateSkillAPIView.as_view(), name="candidate-skills"),
+    path("favicon.ico", favicon, name="favicon"),
+    path("api/root", api_root, name="api-root"),
+
+    # 🦾 CORE SERVICES (Already prefixed with api/ in their respective urls.py)
+    path("", include("apps.jd_app.urls")),
+    path("", include("apps.candidates.urls")),
+    path("", include("apps.pipeline.urls")),
     path("api/auth/", include("apps.accounts.urls")),
+    path("api/dashboard/", include("dashboard.urls")),
+
+    # 🧪 INDEPENDENT ENDPOINTS
     path("api/ranking/", RankingView.as_view()),
     path("api/ranking/match/", MatchCandidatesView.as_view(), name="ranking-match"),
     path("api/ranking/match-by-job/", MatchByJobIdView.as_view(), name="match-by-job"),
-    # Jobs API (as per task requirements)
-    path("api/jobs/", include("apps.jd_app.urls")),
-    path("api/jobs/<int:job_id>/match/", MatchByJobIdView.as_view(), name="job-match"),
-    path("api/jobs/<int:job_id>/matches/", JobMatchesView.as_view(), name="job-matches"),
-    path("api/match-candidates", MatchByJobIdView.as_view(), name="match-candidates"),
     path("api/ranking/match-statistics/", MatchStatisticsView.as_view(), name="match-statistics"),
     path("api/ranking/batch-match/", BatchMatchView.as_view(), name="batch-match"),
     path("api/ranking/compare-candidates/", CompareCandidatesView.as_view(), name="compare-candidates"),
     path("api/ranking/strategies/", GetStrategiesView.as_view(), name="ranking-strategies"),
+    
+    path("api/jobs/<int:job_id>/match/", MatchByJobIdView.as_view(), name="job-match"),
+    path("api/jobs/<int:job_id>/matches/", JobMatchesView.as_view(), name="job-matches"),
     path("api/jobs/<int:job_id>/funnel/add/", AddToFunnelView.as_view(), name="add-to-funnel"),
     path("api/jobs/<int:job_id>/funnel/", FunnelView.as_view(), name="funnel-data"),
-    path("api/funnel/<int:funnel_id>/update-stage/", FunnelView.as_view(), name="update-funnel-stage"),
-    path("api/funnel/<int:funnel_id>/delete/", FunnelView.as_view(), name="delete-funnel-entry"),
+    
     path("api/semantic-search/", SemanticSearchView.as_view(), name="semantic-search"),
-    path("api/rag/search/", SemanticSearchView.as_view(), name="rag-search"),
-    path(
-        "api/job-candidate/update-status",
-        JobCandidateStatusUpdateAPIView.as_view(),
-        name="job-candidate-update-status",
-    ),
     path("api/chat", ChatAPIView.as_view(), name="chat"),
     path("api/export/candidates", ExportCandidatesCSVAPIView.as_view(), name="export-candidates"),
 
-    path("api/pipeline/", include("apps.pipeline.urls")),
-    path("api/scan-emails/", EmailIngestionAPIView.as_view(), name="scan-emails-api"),
-    path("analytics/", analytics_dashboard_view, name="analytics_dashboard"),
-
-    # HTML forms
-    path("search/", search_view, name="search_view"),
-    path("upload/", upload_form, name="upload_form"),
-    path("upload-resume/", upload_resume_submit, name="upload_resume_submit"),
-    path("parse-form/", parse_resume_form, name="parse_resume_form"),
-    path("candidate-form/", candidate_form, name="candidate_form"),
-
-    # Keep catch-all includes LAST so they don't shadow explicit routes above.
-    path("", include("apps.candidates.urls")),
-
-    # Serve React static assets
+    # 🎨 FRONTEND HANDLERS (Must be last)
     re_path(r'^(?P<path>(assets|favicon\.svg|icons\.svg).*)$', serve, {"document_root": settings.BASE_DIR.parent / "resume_frontend" / "dist"}),
 ]
 
 urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 urlpatterns += static("/", document_root=settings.BASE_DIR.parent / "resume_frontend" / "dist")
 
-# Catch-all to serve React frontend for any other routes (must be last)
+# Catch-all to serve React frontend for any other routes
 urlpatterns += [
     re_path(r'^.*$', TemplateView.as_view(template_name="index.html")),
 ]

@@ -22,6 +22,7 @@ urlpatterns = [
 
     # API endpoints
     path("api/parse-resume/", views.parse_resume_view, name="parse_resume"),
+    path("api/upload-resume/", views.ResumeUploadAPIView.as_view(), name="upload-resume"),
     
     # Chunking endpoints
     path("api/chunk-resume/", views.ResumeChunkAPIView.as_view(), name="chunk-resume"),

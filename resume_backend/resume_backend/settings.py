@@ -12,7 +12,7 @@ load_dotenv(BASE_DIR / ".env")
 
 ALLOWED_HOSTS = os.getenv(
     "ALLOWED_HOSTS",
-    "localhost,127.0.0.1,.onrender.com"
+    "localhost,127.0.0.1,resume-ai-obq3.onrender.com,.onrender.com"
 ).split(",")
 
 INSTALLED_APPS = [
@@ -48,6 +48,7 @@ MIDDLEWARE = [
 ]
 
 ROOT_URLCONF = "resume_backend.urls"
+APPEND_SLASH = True
 
 TEMPLATES = [
     {
@@ -183,8 +184,9 @@ CORS_ALLOW_ALL_ORIGINS = os.getenv("DEBUG", "False") == "True"  # Only allow all
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
-    "https://resume-ai-git-main-dssjcs01-1765s-projects.vercel.app/",
-] + [o for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o]
+    "https://resume-ai-git-main-dssjcs01-1765s-projects.vercel.app",
+    "https://resume-ai-sable.vercel.app",
+] + [o.rstrip('/') for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o]
 CORS_ALLOW_CREDENTIALS = True
 CORS_ALLOW_HEADERS = [
     'accept',
@@ -206,8 +208,10 @@ CORS_ALLOW_METHODS = [
     'PUT',
 ]
 CSRF_TRUSTED_ORIGINS = [
-    'http://localhost:5173',
-    'http://127.0.0.1:5173',
+    "http://localhost:5173",
+    "http://127.0.0.1:5173",
+    "https://resume-ai-git-main-dssjcs01-1765s-projects.vercel.app",
+    "https://resume-ai-sable.vercel.app",
 ] + [o for o in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",") if o]  # Django 4+ requires scheme
 
 # Logging configuration

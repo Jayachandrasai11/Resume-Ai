@@ -1,7 +1,19 @@
 import axios from 'axios';
 
-const rawBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
-export const API_BASE_URL = rawBaseUrl.endsWith('/') ? rawBaseUrl.slice(0, -1) : rawBaseUrl;
+// 🌐 CENTRALIZED PRODUCTION API CONFIGURATION 🌐
+const getBaseURL = () => {
+  const envBase = import.meta.env.VITE_API_BASE_URL;
+  if (envBase) return envBase.endsWith('/') ? `${envBase}api` : `${envBase}/api`;
+  return import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+};
+
+export const API_BASE_URL = getBaseURL();
+
+// Runtime Diagnostic Logging
+if (import.meta.env.PROD) {
+  console.log('🚀 REC-AI Engine Initialized');
+  console.log('📍 Neural Interface Base:', API_BASE_URL);
+}
 
 // Track if we're currently refreshing a token to prevent race conditions
 let isRefreshing = false;
@@ -88,9 +100,19 @@ const attemptTokenRefresh = async () => {
   }
 };
 
-// Request interceptor - add auth token and cache buster
+// Request interceptor - add auth token, cache buster and force trailing slash
 http.interceptors.request.use(
   (config) => {
+    // Force trailing slash for Django compatibility
+    if (config.url && !config.url.endsWith('/') && !config.url.includes('?')) {
+      config.url += '/';
+    } else if (config.url && !config.url.endsWith('/') && config.url.includes('?')) {
+      const parts = config.url.split('?');
+      if (!parts[0].endsWith('/')) {
+        config.url = `${parts[0]}/?${parts[1]}`;
+      }
+    }
+
     const { accessToken } = getTokens();
     if (accessToken) {
       config.headers = config.headers || {};
