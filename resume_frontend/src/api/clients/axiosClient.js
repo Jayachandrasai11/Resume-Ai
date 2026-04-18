@@ -2,12 +2,19 @@ import axios from 'axios';
 
 // 🌐 CENTRALIZED PRODUCTION API CONFIGURATION 🌐
 const getBaseURL = () => {
-  const envBase = import.meta.env.VITE_API_BASE_URL;
-  if (envBase) {
-    const cleanBase = envBase.endsWith('/') ? envBase.slice(0, -1) : envBase;
-    return `${cleanBase}/api/`;
+  // Use VITE_API_URL as primary (convention for full path) 
+  // or VITE_API_BASE_URL as fallback (convention for domain)
+  let url = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/';
+  
+  // 🛡️ FAILSAFE: Guarantee the /api/ namespace exists
+  if (!url.includes('/api')) {
+    url = url.endsWith('/') ? `${url}api/` : `${url}/api/`;
   }
-  return import.meta.env.VITE_API_URL || 'http://localhost:8000/api/';
+  
+  // Ensure trailing slash for Axios/Django consistency
+  if (!url.endsWith('/')) url += '/';
+  
+  return url;
 };
 
 export const API_BASE_URL = getBaseURL();
