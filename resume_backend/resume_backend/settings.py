@@ -12,7 +12,7 @@ load_dotenv(BASE_DIR / ".env")
 
 ALLOWED_HOSTS = os.getenv(
     "ALLOWED_HOSTS",
-    "localhost,127.0.0.1,resume-ai-obq3.onrender.com,.onrender.com"
+    "localhost,127.0.0.1,.onrender.com"
 ).split(",")
 
 INSTALLED_APPS = [
