@@ -3,8 +3,11 @@ import axios from 'axios';
 // 🌐 CENTRALIZED PRODUCTION API CONFIGURATION 🌐
 const getBaseURL = () => {
   const envBase = import.meta.env.VITE_API_BASE_URL;
-  if (envBase) return envBase.endsWith('/') ? `${envBase}api` : `${envBase}/api`;
-  return import.meta.env.VITE_API_URL || 'http://localhost:8000/api';
+  if (envBase) {
+    const cleanBase = envBase.endsWith('/') ? envBase.slice(0, -1) : envBase;
+    return `${cleanBase}/api/`;
+  }
+  return import.meta.env.VITE_API_URL || 'http://localhost:8000/api/';
 };
 
 export const API_BASE_URL = getBaseURL();
