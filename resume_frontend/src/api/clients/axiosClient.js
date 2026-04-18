@@ -1,10 +1,10 @@
 import axios from 'axios';
 
 // 🌐 CENTRALIZED PRODUCTION API CONFIGURATION 🌐
+// 🌐 CENTRALIZED PRODUCTION API CONFIGURATION 🌐
 const getBaseURL = () => {
-  // Use VITE_API_URL as primary (convention for full path) 
-  // or VITE_API_BASE_URL as fallback (convention for domain)
-  let url = import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api/';
+  // Use VITE_API_BASE_URL as primary (convention for full path) 
+  let url = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || 'http://localhost:8000/api/';
   
   // 🛡️ FAILSAFE: Guarantee the /api/ namespace exists
   if (!url.includes('/api')) {
@@ -45,8 +45,9 @@ export const http = axios.create({
   baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   },
-  timeout: 120000, // 120 second timeout for complex matching operations
+  timeout: 15000, // 15 second default timeout (Render cold start handling)
 });
 
 // Helper function to get tokens from storage
@@ -87,7 +88,7 @@ const attemptTokenRefresh = async () => {
   }
 
   try {
-    const response = await axios.post(`${API_BASE_URL}/auth/token/refresh/`, {
+    const response = await axios.post(`${API_BASE_URL}auth/token/refresh/`, {
       refresh: refreshToken
     });
     
@@ -121,6 +122,11 @@ http.interceptors.request.use(
       if (!parts[0].endsWith('/')) {
         config.url = `${parts[0]}/?${parts[1]}`;
       }
+    }
+
+    // Dynamic timeout for heavy AI operations (prevent timeout during embeddings)
+    if (config.url.includes('ranking') || config.url.includes('match') || config.url.includes('chat')) {
+      config.timeout = 120000; // 2 minutes for AI tasks
     }
 
     const { accessToken } = getTokens();
@@ -195,13 +201,21 @@ http.interceptors.response.use(
         }
       }
 
-        // Just reject the error - the calling code should handle it
-      if (!isTokenError) {
-        return Promise.reject(error);
+    // GLOBAL ERROR MAPPING
+    if (error.response) {
+      switch (error.response.status) {
+        case 403:
+          console.error('⛔ Access Denied: Insufficient Permissions');
+          break;
+        case 500:
+          console.error('💥 Server Error: Neural Engine failure');
+          break;
+        case 0:
+          console.error('🌐 Network Error: Possible CORS blockage or Cold Start');
+          break;
       }
     }
 
-    // For other errors, just pass them through
     return Promise.reject(error);
   }
 );
