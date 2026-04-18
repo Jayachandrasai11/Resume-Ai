@@ -410,20 +410,37 @@ class ResumeUploadAPIView(APIView):
             logger.error(f"MIME validation failed: {e}")
             return Response({"error": "Security validation failed"}, status=status.HTTP_400_BAD_REQUEST)
 
-        fn = default_storage.save(f"resumes/{sanitize_filename(file.name)}", ContentFile(file.read()))
-        fp = default_storage.path(fn)
-        if not os.path.realpath(fp).startswith(os.path.realpath(default_storage.path("resumes")) + os.sep):
-            default_storage.delete(fn)
-            return Response({"error": "Invalid path"}, status=status.HTTP_400_BAD_REQUEST)
+        # Use a temporary file for extraction
+        import tempfile
+        from ..services.supabase_storage import storage_service
 
-        # Extract text with fallback
-        text = ""
         try:
-            text = EXT_MAP[ext](fp)
-        except Exception as e:
-            logger.error(f"Failed to extract text from {file.name}: {e}")
-            # Fallback: use filename as minimal text
-            text = f"Resume: {file.name}"
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
+                for chunk in file.chunks():
+                    tmp.write(chunk)
+                tmp_path = tmp.name
+
+            # Extract text using the temporary file
+            text = ""
+            try:
+                text = EXT_MAP[ext](tmp_path)
+            except Exception as e:
+                logger.error(f"Failed to extract text from {file.name}: {e}")
+                text = f"Resume: {file.name}"
+
+            # Upload to Supabase Storage
+            remote_path = f"resumes/{sanitize_filename(file.name)}"
+            try:
+                supabase_url = storage_service.upload_file(tmp_path, remote_path, content_type=mime_type)
+                fn = remote_path  # We'll store the relative path in the FileField
+            except Exception as e:
+                logger.error(f"Supabase upload failed, falling back to local: {e}")
+                # Fallback to default storage if Supabase fails
+                file.seek(0)
+                fn = default_storage.save(f"resumes/{sanitize_filename(file.name)}", ContentFile(file.read()))
+        finally:
+            if 'tmp_path' in locals() and os.path.exists(tmp_path):
+                os.remove(tmp_path)
 
         logger.info(f"Extracted text length for {file.name}: {len(text)}")
 

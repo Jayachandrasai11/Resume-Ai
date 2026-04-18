@@ -66,16 +66,20 @@ TEMPLATES = [
     },
 ]
 
+import dj_database_url
+
 DATABASES = {
-    "default": {
-        "ENGINE": os.getenv("POSTGRES_ENGINE", "django.db.backends.postgresql"),
-        "NAME": os.getenv("POSTGRES_NAME", "resume_backend"),
-        "USER": os.getenv("POSTGRES_USER", "postgres"),
-        "PASSWORD": os.getenv("POSTGRES_PASSWORD", ""),
-        "HOST": os.getenv("POSTGRES_HOST", "localhost"),
-        "PORT": os.getenv("POSTGRES_PORT", "5432"),
-    }
+    "default": dj_database_url.config(
+        default=os.getenv("DATABASE_URL", "postgresql://postgres:postgres@localhost:5432/resume_backend"),
+        conn_max_age=600,
+        ssl_require=True if os.getenv("DEBUG", "False") == "False" else False
+    )
 }
+
+# Supabase Storage Configuration
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")  # Service Role Key for backend
+SUPABASE_BUCKET = os.getenv("SUPABASE_BUCKET", "resumes")
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": (
