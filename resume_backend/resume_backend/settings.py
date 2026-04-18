@@ -121,7 +121,12 @@ CACHES = {
 
 # Static and media files
 STATIC_URL = "/static/"
-STATICFILES_DIRS = [BASE_DIR.parent / "resume_frontend" / "dist"]
+STATIC_ROOT = os.path.join(BASE_DIR, 'staticfiles')
+
+# Only include frontend dist if it exists (prevents crash on decoupled deploy)
+frontend_dist = BASE_DIR.parent / "resume_frontend" / "dist"
+STATICFILES_DIRS = [frontend_dist] if frontend_dist.exists() else []
+
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
