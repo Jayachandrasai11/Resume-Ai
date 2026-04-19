@@ -44,6 +44,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         fields = ("username", "email", "first_name", "last_name")
 
 class RegisterSerializer(serializers.ModelSerializer):
+    username = serializers.CharField(required=False, allow_blank=True)
     password = serializers.CharField(write_only=True)
     full_name = serializers.CharField(write_only=True, required=False, allow_blank=True)
     # Backwards-compatible alias (older frontend may send `name`)
@@ -73,7 +74,7 @@ class RegisterSerializer(serializers.ModelSerializer):
 
         user = User.objects.create_user(
             # Always use email as the login username so users can log in with email
-            username=validated_data.get("email", validated_data["username"]),
+            username=validated_data.get("email") or validated_data.get("username"),
             email=validated_data.get("email", ""),
             password=validated_data["password"],
             role=validated_data.get("role", "recruiter"),
