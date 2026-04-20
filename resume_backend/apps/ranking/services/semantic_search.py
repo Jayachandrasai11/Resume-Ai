@@ -1,7 +1,7 @@
 from django.db.models import Max, FloatField, ExpressionWrapper
 from pgvector.django import CosineDistance
 from apps.candidates.models import Candidate
-from apps.candidates.services.embeddings import service as emb_service
+from apps.candidates.services.embeddings import get_embedding_service
 import logging
 
 logger = logging.getLogger(__name__)
@@ -9,11 +9,12 @@ logger = logging.getLogger(__name__)
 class SemanticSearchService:
     def search_candidates(self, job_description: str, limit: int = 10, threshold: float = 0.3):
         # Validate embedding service
-        if not emb_service.validate_embedding_dimensions():
+        embedding_service = get_embedding_service()
+        if not embedding_service.validate_embedding_dimensions():
             logger.error("❌ Embedding service validation failed - dimensions mismatch")
             return []
             
-        vector = emb_service.get_embedding(job_description)
+        vector = embedding_service.get_embedding(job_description)
         
         # Validate embedding dimensions
         if len(vector) != 384:

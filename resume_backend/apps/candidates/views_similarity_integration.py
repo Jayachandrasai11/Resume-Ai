@@ -23,8 +23,8 @@ from .services.email_ingestion import process_email_resume
 from .services.summary import summary_service
 from .services.skills import skill_service
 from .services.chunking import chunk_and_store_resume
-from .services.embeddings import service as embedding_service
-from .services.similarity_detection import similarity_detection_service
+from .services.embeddings import get_embedding_service
+from .services.similarity_detection import SimilarityDetectionService
 
 
 # Constants & Helpers
@@ -106,7 +106,8 @@ class ResumeUploadWithSimilarityAPIView(APIView):
         
         if check_similarity:
             # Perform similarity check
-            similarity_result = similarity_detection_service.check_resume_similarity(
+            service = SimilarityDetectionService()
+            similarity_result = service.check_resume_similarity(
                 resume_text=text,
                 threshold=similarity_threshold,
                 limit=5
@@ -142,7 +143,7 @@ class ResumeUploadWithSimilarityAPIView(APIView):
         
         # Trigger chunking and embedding immediately
         chunk_and_store_resume(resume.id)
-        embedding_service.generate_for_resumes(resume_ids=[resume.id])
+        get_embedding_service().generate_for_resumes(resume_ids=[resume.id])
         
         # Automatic skill extraction for the candidate
         if candidate:
