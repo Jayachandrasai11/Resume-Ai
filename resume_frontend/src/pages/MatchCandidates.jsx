@@ -64,6 +64,9 @@ const MatchCandidates = () => {
       const response = await api.matchByJobId(jobId, 50, threshold, strategy, mode);
       results = response.data?.results || response.data || [];
       
+      sessionStorage.setItem(`match_results_${jobId}`, JSON.stringify(results));
+      sessionStorage.setItem(`match_mode_${jobId}`, matchType);
+      
       setSearchResults(results);
       navigate(`/jobs/${jobId}/results`);
     } catch (err) {

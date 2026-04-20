@@ -47,11 +47,22 @@ const MatchResults = () => {
       const fetchResults = async () => {
         try {
           setIsLoading(true);
-          const response = await http.get(`/jobs/${jobId}/match/`, { params: { session_id: sessionId, limit: 50 } });
+          const mode = searchType || 'smart';
+          const threshold = mode === 'deep' ? 0.2 : mode === 'exact' ? 0.5 : 0.3;
+          const backendMode = mode === 'deep' ? 'semantic' : mode === 'exact' ? 'keyword' : 'smart';
+          const response = await http.get(`/jobs/${jobId}/match/`, { 
+            params: { 
+              session_id: sessionId, 
+              limit: 50,
+              threshold: threshold,
+              mode: backendMode
+            } 
+          });
           const results = Array.isArray(response.data) ? response.data : (response.data?.results || []);
           if (results && results.length > 0) {
              store.setSearchResults(results);
              store.setIsSearchMode(true);
+             store.setSearchType(mode);
           }
         } catch (err) { 
            console.error('Fetch failed:', err);
