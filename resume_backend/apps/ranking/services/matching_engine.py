@@ -394,9 +394,14 @@ class MatchingEngine:
         # Get baseline semantic matches (with skill filtering)
         semantic_results = self._cosine_similarity_match(job_embedding, limit * 2, threshold * 0.7, False, recruiter_id, job_skills=job_skills)
         
+        # Pre-fetch all relevant candidates in one query to avoid N+1 slow queries
+        candidate_ids = [result['candidate_id'] for result in semantic_results]
+        candidates_map = {c.id: c for c in Candidate.objects.filter(id__in=candidate_ids)}
+        
         weighted_results = []
         for result in semantic_results:
-            candidate = Candidate.objects.get(id=result['candidate_id'])
+            candidate = candidates_map.get(result['candidate_id'])
+            if not candidate: continue
             
             # Calculate weighted score components
             skill_score = self._calculate_skill_match(job_description, candidate)
@@ -489,7 +494,7 @@ class MatchingEngine:
                     role_context = " Full stack developer position requiring frontend and backend development, JavaScript, React, Node.js, database experience. "
                 full_description = f"{title} {description} {skills}{role_context}"
             
-            # Use MUCH higher threshold for short descriptions to avoid irrelevant matches
+            # Use a more permissive threshold for short descriptions to ensure results
             effective_threshold = threshold
             
             # When showing all candidates (limit >= 100), bypass threshold filtering
@@ -497,7 +502,7 @@ class MatchingEngine:
                 effective_threshold = 0.0  # Show all candidates regardless of match score
                 logger.info(f"   Showing ALL candidates - threshold set to 0.0")
             elif len(full_description) < 150:
-                effective_threshold = max(threshold, 0.60)  # Require at least 60% similarity for short descriptions
+                effective_threshold = max(threshold, 0.15)  # Lowered from 0.60 to 0.15 to show more results
                 logger.info(f"   Using higher threshold {effective_threshold} for short description")
             
             # DEBUG: Log threshold settings
