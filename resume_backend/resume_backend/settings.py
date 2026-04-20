@@ -192,12 +192,14 @@ SIMPLE_JWT = {
 CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://resume-ai-.*\.vercel\.app$",
+    r"^https://resume-ai-.*\.onrender\.com$",
 ]
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
     "https://resume-ai-git-main-dssjcs01-1765s-projects.vercel.app",
     "https://resume-ai-sable.vercel.app",
+    "https://resume-ai-obq3.onrender.com",
 ] + [o.rstrip('/') for o in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if o]
 from corsheaders.defaults import default_headers
 

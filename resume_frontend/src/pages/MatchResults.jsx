@@ -29,6 +29,7 @@ const MatchResults = () => {
         store.setIsSearchMode(true);
         if (recoveryMode) store.setSearchType(recoveryMode);
         setIsLoading(false);
+        setHasInitialized(true);
         return;
     }
 
@@ -64,23 +65,19 @@ const MatchResults = () => {
          console.error('Fetch failed:', err);
       } finally {
          setIsLoading(false);
+         setHasInitialized(true);
       }
     };
 
     if (!isSearchMode || !searchResults || searchResults.length === 0) {
-    const shouldFetch = !isSearchMode || !searchResults || searchResults.length === 0;
-    if (shouldFetch && !recoveryData) {
       fetchResults();
     } else {
       setIsLoading(false);
+      setHasInitialized(true);
     }
 
-    const timer = setTimeout(() => {
-      setHasInitialized(true);
-      setIsLoading(false);
-    }, 500);
-    return () => clearTimeout(timer);
-  }, [jobId, navigate, isSearchMode, searchResults.length]);
+    return () => {};
+  }, [jobId]);
 
   const hasResults = isSearchMode && searchResults && searchResults.length > 0;
 
