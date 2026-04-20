@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings  # noqa: F401
-from pgvector.django import VectorField
+from pgvector.django import VectorField, HnswIndex
 
 
 class Skill(models.Model):
@@ -132,6 +132,13 @@ class ResumeChunk(models.Model):
         unique_together = ['resume', 'chunk_index']
         indexes = [
             models.Index(fields=['resume', 'chunk_index']),
+            HnswIndex(
+                name='embedding_hnsw_idx',
+                fields=['embedding'],
+                m=16,
+                ef_construction=64,
+                opclasses=['vector_cosine_ops']
+            )
         ]
 
     def __str__(self):

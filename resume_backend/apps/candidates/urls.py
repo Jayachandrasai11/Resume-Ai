@@ -11,6 +11,7 @@ router.register(r'chunks', views.ResumeChunkViewSet, basename='resumechunk')
 urlpatterns = [
     # Candidate specific endpoints (Place these before router to avoid being captured)
     path("api/candidates/search/", views.CandidateSearchAPIView.as_view(), name="candidate-search-api"),
+    path("api/health/", views.HealthCheckAPIView.as_view(), name="health-check"),
     path("api/candidates/chat/", views.ResumeChatRAGAPIView.as_view(), name="resume-chat-rag"),
     path("api/candidates/interview-questions/", views.InterviewQuestionsAPIView.as_view(), name="interview-questions"),
     path("api/candidates/similarity-check/", views.SimilarityCheckAPIView.as_view(), name="similarity-check"),

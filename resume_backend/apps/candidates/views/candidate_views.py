@@ -764,3 +764,26 @@ class ResumeChunkAPIView(APIView):
     def post(self, request):
         return Response({"status": "chunking endpoint ready"})
 
+
+class HealthCheckAPIView(APIView):
+    """
+    Production-level health check for monitoring and automated deployments.
+    """
+    permission_classes = [] # Publicly accessible for infrastructure monitoring
+    
+    def get(self, request):
+        from django.db import connection
+        try:
+            # Test DB Connection
+            connection.ensure_connection()
+            db_status = "operational"
+        except Exception:
+            db_status = "unavailable"
+            
+        return Response({
+            "status": "healthy",
+            "database": db_status,
+            "version": "1.2.0-stable",
+            "service": "Resume Matching Engine"
+        }, status=status.HTTP_200_OK if db_status == "operational" else status.HTTP_503_SERVICE_UNAVAILABLE)
+
