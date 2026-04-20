@@ -313,10 +313,11 @@ class MatchByJobIdView(APIView):
         start_time = time.time()
 
         try:
+            # Quick return for production - limit candidates to prevent timeout
             results = matching_engine.match_by_job_id(
                 job_id=job_id,
-                limit=limit,
-                threshold=threshold,
+                limit=10,
+                threshold=0.6,
                 strategy=strategy,
                 recruiter_id=recruiter_id,
                 mode=mode

@@ -15,69 +15,33 @@ const MatchResults = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    const sessionId = localStorage.getItem('job_session_id') || 
-                      sessionStorage.getItem('job_session_id') || 
-                      localStorage.getItem('session_id') || 
-                      sessionStorage.getItem('session_id');
-
+    // ALWAYS check sessionStorage first - this is the source of truth after navigation
     const recoveryData = sessionStorage.getItem(`match_results_${jobId}`);
     const recoveryMode = sessionStorage.getItem(`match_mode_${jobId}`);
     
     if (recoveryData) {
         const parsed = JSON.parse(recoveryData);
-        store.setSearchResults(parsed);
-        store.setIsSearchMode(true);
-        if (recoveryMode) store.setSearchType(recoveryMode);
+        if (parsed && parsed.length > 0) {
+            store.setSearchResults(parsed);
+            store.setIsSearchMode(true);
+            if (recoveryMode) store.setSearchType(recoveryMode);
+            setIsLoading(false);
+            setHasInitialized(true);
+            return;
+        }
+    }
+
+    // If no sessionStorage data, use store data if available
+    if (isSearchMode && searchResults && searchResults.length > 0) {
         setIsLoading(false);
         setHasInitialized(true);
         return;
     }
 
-    const hasInitialData = isSearchMode && searchResults && searchResults.length > 0;
-    
-    if (!sessionId && !hasInitialData && !recoveryData) { 
-      navigate('/jobs'); 
-      return; 
-    }
-
-    const fetchResults = async () => {
-      try {
-        setIsLoading(true);
-        const mode = searchType || 'smart';
-        const threshold = mode === 'deep' ? 0.4 : mode === 'exact' ? 0.7 : 0.5;
-        const backendMode = mode === 'deep' ? 'semantic' : mode === 'exact' ? 'keyword' : 'smart';
-        
-        const response = await http.get(`/jobs/${jobId}/match/`, { 
-          params: { 
-            session_id: sessionId, 
-            limit: 30,
-            threshold: threshold,
-            mode: backendMode
-          } 
-        });
-        
-        const results = Array.isArray(response.data) ? response.data : (response.data?.results || []);
-        
-        store.setSearchResults(results);
-        store.setIsSearchMode(true);
-        store.setSearchType(mode);
-      } catch (err) { 
-         console.error('Fetch failed:', err);
-      } finally {
-         setIsLoading(false);
-         setHasInitialized(true);
-      }
-    };
-
-    if (!isSearchMode || !searchResults || searchResults.length === 0) {
-      fetchResults();
-    } else {
-      setIsLoading(false);
-      setHasInitialized(true);
-    }
-
+    // Otherwise navigate back to match page
+    navigate(`/jobs/${jobId}/match`);
     return () => {};
-  }, [jobId]);
+  }, []);
 
   const hasResults = isSearchMode && searchResults && searchResults.length > 0;
 

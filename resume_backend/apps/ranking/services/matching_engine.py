@@ -523,9 +523,9 @@ class MatchingEngine:
             if limit >= 100:
                 effective_threshold = 0.0  # Show all candidates regardless of match score
                 logger.info(f"   Showing ALL candidates - threshold set to 0.0")
-            elif len(full_description) < 150:
-                effective_threshold = max(threshold, 0.15)  # Lowered from 0.60 to 0.15 to show more results
-                logger.info(f"   Using higher threshold {effective_threshold} for short description")
+            else:
+                effective_threshold = max(threshold, 0.5)  # Always use at least 0.5 threshold for performance
+                logger.info(f"   Using threshold {effective_threshold}")
             
             # DEBUG: Log threshold settings
             logger.info(f"🔍 DEBUG: limit={limit}, original threshold={threshold}, effective_threshold={effective_threshold}")

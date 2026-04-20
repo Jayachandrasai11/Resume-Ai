@@ -189,10 +189,11 @@ SIMPLE_JWT = {
 }
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = False
+CORS_ALLOW_ALL_ORIGINS = True
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://resume-ai-.*\.vercel\.app$",
     r"^https://resume-ai-.*\.onrender\.com$",
+    r".*",
 ]
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
