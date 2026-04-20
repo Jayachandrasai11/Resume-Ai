@@ -86,7 +86,7 @@ urlpatterns = [
     # 🧪 INDEPENDENT ENDPOINTS
     path("api/ranking/", RankingView.as_view()),
     path("api/ranking/match/", MatchCandidatesView.as_view(), name="ranking-match"),
-    path("api/ranking/match-by-job/", MatchByJobIdView.as_view(), name="match-by-job"),
+    re_path(r'^api/ranking/match-by-job/', MatchByJobIdView.as_view(), name="match-by-job"),
     path("api/ranking/match-statistics/", MatchStatisticsView.as_view(), name="match-statistics"),
     path("api/ranking/batch-match/", BatchMatchView.as_view(), name="batch-match"),
     path("api/ranking/compare-candidates/", CompareCandidatesView.as_view(), name="compare-candidates"),

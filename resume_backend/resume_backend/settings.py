@@ -189,7 +189,7 @@ SIMPLE_JWT = {
 }
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = True  # Allowed for all origins to prevent crash-related CORS false flags
+CORS_ALLOW_ALL_ORIGINS = False
 CORS_ALLOWED_ORIGIN_REGEXES = [
     r"^https://resume-ai-.*\.vercel\.app$",
 ]
