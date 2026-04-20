@@ -6,6 +6,8 @@ with proper error handling, singleton pattern, and validation.
 
 import os
 import logging
+import gc
+import torch
 from typing import Iterable, List, Optional, Dict
 from django.db import transaction
 from ..models import ResumeChunk
@@ -105,7 +107,8 @@ class EmbeddingService:
         texts = text if is_batch else [text]
 
         try:
-            import torch
+            # 🛡️ PRODUCTION RAM GUARD: Force single thread to prevent memory fragmentation
+            torch.set_num_threads(1)
             
             # Tokenize inputs
             encoded_input = self._tokenizer(
@@ -134,6 +137,12 @@ class EmbeddingService:
 
             # Convert to list
             embeddings = sentence_embeddings.tolist()
+
+            # 🧹 AGGRESSIVE CLEANUP: Flush memory immediately after compute
+            del encoded_input
+            del model_output
+            del token_embeddings
+            gc.collect()
 
             logger.debug(f"Encoded {len(texts)} text(s) to embeddings of shape {len(embeddings[0])}")
 
