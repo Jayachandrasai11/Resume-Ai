@@ -15,18 +15,15 @@ const MatchResults = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    // 🛡️ Robust Session Recovery 🛡️
     const sessionId = localStorage.getItem('job_session_id') || 
                       sessionStorage.getItem('job_session_id') || 
                       localStorage.getItem('session_id') || 
                       sessionStorage.getItem('session_id');
 
-    // 🔬 Data Integrity Recover Layer
     const recoveryData = sessionStorage.getItem(`match_results_${jobId}`);
     const recoveryMode = sessionStorage.getItem(`match_mode_${jobId}`);
     
-    if (recoveryData && (!isSearchMode || searchResults.length === 0)) {
-        console.log('📦 Recovering AI search from persistence layer...');
+    if (recoveryData) {
         const parsed = JSON.parse(recoveryData);
         store.setSearchResults(parsed);
         store.setIsSearchMode(true);
@@ -43,33 +40,35 @@ const MatchResults = () => {
       return; 
     }
 
-    if (!isSearchMode || !searchResults || searchResults.length === 0) {
-      const fetchResults = async () => {
-        try {
-          setIsLoading(true);
-          const mode = searchType || 'smart';
-          const threshold = mode === 'deep' ? 0.2 : mode === 'exact' ? 0.5 : 0.3;
-          const backendMode = mode === 'deep' ? 'semantic' : mode === 'exact' ? 'keyword' : 'smart';
-          const response = await http.get(`/jobs/${jobId}/match/`, { 
-            params: { 
-              session_id: sessionId, 
-              limit: 50,
-              threshold: threshold,
-              mode: backendMode
-            } 
-          });
-          const results = Array.isArray(response.data) ? response.data : (response.data?.results || []);
-          if (results && results.length > 0) {
-             store.setSearchResults(results);
-             store.setIsSearchMode(true);
-             store.setSearchType(mode);
-          }
-        } catch (err) { 
-           console.error('Fetch failed:', err);
-        } finally {
-           setIsLoading(false);
-        }
-      };
+    const fetchResults = async () => {
+      try {
+        setIsLoading(true);
+        const mode = searchType || 'smart';
+        const threshold = mode === 'deep' ? 0.2 : mode === 'exact' ? 0.5 : 0.3;
+        const backendMode = mode === 'deep' ? 'semantic' : mode === 'exact' ? 'keyword' : 'smart';
+        
+        const response = await http.get(`/jobs/${jobId}/match/`, { 
+          params: { 
+            session_id: sessionId, 
+            limit: 50,
+            threshold: threshold,
+            mode: backendMode
+          } 
+        });
+        
+        const results = Array.isArray(response.data) ? response.data : (response.data?.results || []);
+        
+        store.setSearchResults(results);
+        store.setIsSearchMode(true);
+        store.setSearchType(mode);
+      } catch (err) { 
+         console.error('Fetch failed:', err);
+      } finally {
+         setIsLoading(false);
+      }
+    };
+
+   if (!isSearchMode || !searchResults || searchResults.length === 0) {
       fetchResults();
     } else {
       setIsLoading(false);

@@ -15,7 +15,8 @@ const getSkillsArray = (skills) => {
 const MatchCandidates = () => {
   const { jobId } = useParams();
   const navigate = useNavigate();
-  const { setSelectedJob, setSearchResults, setIsSearchMode, setSearchType } = useJobStore();
+  const store = useJobStore();
+  const { setSelectedJob, setSearchResults, setIsSearchMode, setSearchType } = store;
 
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -62,13 +63,17 @@ const MatchCandidates = () => {
       if (matchType === 'exact') threshold = 0.5;
 
       const response = await api.matchByJobId(jobId, 50, threshold, strategy, mode);
-      results = response.data?.results || response.data || [];
+      results = Array.isArray(response.data) ? response.data : (response.data?.results || []);
       
       sessionStorage.setItem(`match_results_${jobId}`, JSON.stringify(results));
       sessionStorage.setItem(`match_mode_${jobId}`, matchType);
+      localStorage.setItem('last_match_mode', matchType);
       
-      setSearchResults(results);
-      navigate(`/jobs/${jobId}/results`);
+      store.setSearchResults(results);
+      store.setSearchType(matchType);
+      store.setIsSearchMode(true);
+      
+      navigate(`/jobs/${jobId}/results`, { replace: true });
     } catch (err) {
       setError('Matching core offline. Retrying extraction...');
     } finally {
