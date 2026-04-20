@@ -17,7 +17,7 @@ from ..serializers_similarity import (
     SimilarityCheckResponseSerializer,
     SimilarityStatisticsSerializer,
 )
-from ..services.similarity_detection import similarity_detection_service
+from ..services.similarity_detection import SimilarityDetectionService
 
 logger = logging.getLogger(__name__)
 
@@ -31,15 +31,16 @@ class SimilarityCheckAPIView(APIView):
             serializer.is_valid(raise_exception=True)
             data = serializer.validated_data
 
+            service = SimilarityDetectionService()
             if data.get("resume_id"):
-                result = similarity_detection_service.check_resume_similarity_by_resume_id(
+                result = service.check_resume_similarity_by_resume_id(
                     resume_id=data["resume_id"],
                     threshold=data.get("threshold", 0.90),
                     limit=data.get("limit", 5),
                     distance_metric=data.get("distance_metric", "cosine"),
                 )
             else:
-                result = similarity_detection_service.check_resume_similarity(
+                result = service.check_resume_similarity(
                     resume_text=data.get("resume_text", ""),
                     threshold=data.get("threshold", 0.90),
                     limit=data.get("limit", 5),
@@ -71,7 +72,8 @@ class FindSimilarCandidatesAPIView(APIView):
             if not 1 <= limit <= 20:
                 return Response({"error": "Limit must be between 1 and 20"}, status=status.HTTP_400_BAD_REQUEST)
 
-            similar_candidates = similarity_detection_service.find_all_similar_candidates(
+            service = SimilarityDetectionService()
+            similar_candidates = service.find_all_similar_candidates(
                 candidate_id=candidate_id,
                 threshold=threshold,
                 limit=limit,
@@ -91,7 +93,9 @@ class SimilarityStatisticsAPIView(APIView):
 
     def get(self, request):
         try:
-            stats_data = similarity_detection_service.get_similarity_statistics()
+            # Instantiate service lazily
+            service = SimilarityDetectionService()
+            stats_data = service.get_similarity_statistics()
             serializer = SimilarityStatisticsSerializer(stats_data)
             return Response(serializer.data, status=status.HTTP_200_OK)
         except Exception as e:
@@ -108,7 +112,8 @@ class MarkDuplicateAPIView(APIView):
             serializer.is_valid(raise_exception=True)
             data = serializer.validated_data
 
-            result = similarity_detection_service.mark_duplicate_resumes(
+            service = SimilarityDetectionService()
+            result = service.mark_duplicate_resumes(
                 resume_id=data["resume_id"],
                 similar_candidate_ids=data["similar_candidate_ids"],
             )

@@ -24,12 +24,12 @@ from apps.jd_app.models import JobDescription, JobSession
 from ..services.chunking import chunk_and_store_resume
 from ..services.duplicate_checker import find_existing_candidate
 from ..services.email_ingestion import process_email_resume
-from ..services.embeddings import service as embedding_service
+from ..services.embeddings import get_embedding_service
 from ..services.export import export_service
 from ..services.interview_questions import interview_questions_service
 from ..services.parser import parse_resume
 from ..services import parse_resume_with_experience
-from ..services.rag_service import rag_service
+from ..services.rag_service import ResumeRAGService
 from ..services.skills import skill_service
 from ..services.summary import summary_service
 from ..utils import extract_text_from_docx, extract_text_from_pdf
@@ -525,7 +525,7 @@ class ResumeUploadAPIView(APIView):
         # Optional processing
         try:
             chunk_and_store_resume(resume.id)
-            embedding_service.generate_for_resumes(resume_ids=[resume.id])
+            get_embedding_service().generate_for_resumes(resume_ids=[resume.id])
 
             if candidate:
                 # Use regex-based skill extraction (no LLM calls)
@@ -614,6 +614,8 @@ class ResumeChatRAGAPIView(APIView):
         if not Candidate.objects.filter(id=candidate_id, created_by=request.user).exists():
             return Response({"error": "Candidate not found"}, status=status.HTTP_404_NOT_FOUND)
 
+        # Use lazy instantiation of RAG service
+        rag_service = ResumeRAGService()
         result = rag_service.chat(candidate_id, question)
         if result.get("status") == "error":
             return Response(result, status=status.HTTP_400_BAD_REQUEST)

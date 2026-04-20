@@ -2,7 +2,8 @@ from .parser import parse_resume, regex_fallback
 from .hybrid_parser import parse_resume_hybrid, split_sections, extract_entities_nlp, extract_skills, extract_experience_years
 from .duplicate_checker import find_existing_candidate
 from .chunking import chunk_and_store_resume, chunk_resumes_batch, get_chunk_text_for_embedding
-from .embeddings import service as embedding_service
+# AI Service is now loaded lazily via get_embedding_service() to prevent OOM crashes
+
 from .email_ingestion import process_email_resume
 
 # Re-export parse_resume with experience_years extraction integrated

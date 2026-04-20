@@ -6,10 +6,8 @@ with proper error handling, singleton pattern, and validation.
 
 import os
 import logging
-import torch
 from typing import Iterable, List, Optional, Dict
 from django.db import transaction
-from transformers import AutoTokenizer, AutoModel
 from ..models import ResumeChunk
 
 # Configure logger
@@ -58,6 +56,9 @@ class EmbeddingService:
     def _load_model(self):
         """Load tokenizer and model - production-grade implementation."""
         try:
+            import torch
+            from transformers import AutoTokenizer, AutoModel
+            
             logger.info(f"Loading embedding model: {self.model_name}")
             
             # Load tokenizer
@@ -104,6 +105,8 @@ class EmbeddingService:
         texts = text if is_batch else [text]
 
         try:
+            import torch
+            
             # Tokenize inputs
             encoded_input = self._tokenizer(
                 texts,
@@ -247,5 +250,6 @@ def get_embedding_service() -> EmbeddingService:
     return _service_instance
 
 
-# Convenience alias for backwards compatibility
-service = get_embedding_service()
+# Convenience alias for backwards compatibility removed to prevent OOM
+# Use get_embedding_service() instead.
+

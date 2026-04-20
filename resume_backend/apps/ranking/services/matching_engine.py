@@ -13,7 +13,7 @@ from django.db.models import Max, FloatField, ExpressionWrapper, Q, Count, Avg
 from pgvector.django import CosineDistance
 
 from apps.candidates.models import Candidate, Resume, ResumeChunk
-from apps.candidates.services.embeddings import service as embedding_service
+from apps.candidates.services.embeddings import get_embedding_service
 from apps.jd_app.models import JobDescription
 
 
@@ -47,17 +47,9 @@ class MatchingEngine:
     MAX_LIMIT = 100
     
     def __init__(self):
-        self.embedding_service = embedding_service
-        # Validate embedding service on initialization
-        try:
-            if not self.embedding_service.validate_embedding_dimensions():
-                logger.critical("❌ Embedding service validation failed - dimensions mismatch")
-            if not self.embedding_service.validate_model_consistency():
-                logger.critical("❌ Embedding service validation failed - model consistency check failed")
-            logger.info("✅ Matching engine initialized successfully with valid embedding service")
-        except Exception as e:
-            logger.critical(f"❌ Failed to initialize matching engine: {str(e)}", exc_info=True)
-            raise RuntimeError(f"Failed to initialize matching engine: {str(e)}")
+        # We no longer instantiate the embedding service here to prevent OOM on startup.
+        # It is accessed lazily within the matching methods.
+        logger.info("Matching engine initialized (AI will load lazily)")
     
     def match_candidates(
         self,
@@ -86,8 +78,11 @@ class MatchingEngine:
         """
         logger.debug(f"match_candidates called - job len: {len(job_description)}, limit: {limit}, threshold: {threshold}, strategy: {strategy}, recruiter_id: {recruiter_id}, mode: {mode}")
         try:
+            # Lazy access to embedding service
+            embedding_service = get_embedding_service()
+            
             # Validate embedding service is operational
-            if not self.embedding_service.validate_embedding_dimensions():
+            if not embedding_service.validate_embedding_dimensions():
                 logger.error("❌ Embedding service validation failed - dimensions mismatch")
                 return []
             
@@ -102,7 +97,7 @@ class MatchingEngine:
             # Generate embedding for job description
             logger.debug("Getting job embedding...")
             try:
-                job_embedding = self.embedding_service.get_embedding(job_description)
+                job_embedding = embedding_service.get_embedding(job_description)
             except Exception as e:
                 logger.error(f"❌ Error generating job embedding: {str(e)}")
                 return []
@@ -540,7 +535,8 @@ class MatchingEngine:
             Dictionary with matching statistics
         """
         try:
-            job_embedding = self.embedding_service.get_embedding(job_description)
+            embedding_service = get_embedding_service()
+            job_embedding = embedding_service.get_embedding(job_description)
             
             # Get all candidates with similarity scores (filter out None values)
             all_candidates = (

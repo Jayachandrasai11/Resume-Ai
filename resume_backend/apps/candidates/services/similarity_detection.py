@@ -12,7 +12,7 @@ from pgvector.django import CosineDistance
 from pgvector.django import L2Distance
 
 from ..models import Candidate, Resume, ResumeChunk
-from .embeddings import service as embedding_service
+from .embeddings import get_embedding_service
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,8 @@ class SimilarityDetectionService:
     
     def __init__(self):
         """Initialize the similarity detection service."""
-        self.embedding_service = embedding_service
+        # Use get_embedding_service() lazily in check methods
+        pass
     
     def check_resume_similarity(
         self,
@@ -66,7 +67,8 @@ class SimilarityDetectionService:
         try:
             # Generate embedding for the new resume
             logger.info(f"Generating embedding for resume similarity check...")
-            new_embedding = self.embedding_service.get_embedding(resume_text)
+            embedding_service = get_embedding_service()
+            new_embedding = embedding_service.get_embedding(resume_text)
             
             if not new_embedding:
                 logger.warning("Failed to generate embedding for resume")
@@ -366,5 +368,5 @@ class SimilarityDetectionService:
             raise
 
 
-# Singleton instance
-similarity_detection_service = SimilarityDetectionService()
+# Singleton removed to prevent OOM
+# Use SimilarityDetectionService() directly or create a getter

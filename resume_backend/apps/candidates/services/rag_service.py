@@ -4,17 +4,10 @@ from typing import List, Dict
 from django.conf import settings
 from django.db.models import FloatField, ExpressionWrapper
 from pgvector.django import CosineDistance
-import google.generativeai as genai
 from ..models import Candidate, ResumeChunk
-from .embeddings import service as embedding_service
+from .embeddings import get_embedding_service
 
-# Configure logging
 logger = logging.getLogger(__name__)
-
-# Configure Gemini
-genai.configure(api_key=getattr(settings, 'GEMINI_API_KEY', os.environ.get('GEMINI_API_KEY')))
-LLM_MODEL = genai.GenerativeModel('gemini-2.5-flash')
-
 
 class ResumeRAGService:
     def __init__(self, top_k: int = 5, similarity_threshold: float = 0.0):
@@ -28,6 +21,16 @@ class ResumeRAGService:
         """
         self.top_k = top_k
         self.similarity_threshold = similarity_threshold
+        self._model = None
+
+    def _get_model(self):
+        """Lazy load Gemini model."""
+        if self._model is None:
+            import google.generativeai as genai
+            api_key = getattr(settings, 'GEMINI_API_KEY', os.environ.get('GEMINI_API_KEY'))
+            genai.configure(api_key=api_key)
+            self._model = genai.GenerativeModel('gemini-1.5-flash')
+        return self._model
 
     def _get_relevant_chunks(self, candidate_id: int, question_embedding: List[float]) -> List[ResumeChunk]:
         """
@@ -132,6 +135,7 @@ You are a helpful AI assistant for a recruiter analyzing a candidate's resume.
         # 2. Generate embedding for the question
         try:
             logger.info(f"[RAG Chat] Generating embedding for question...")
+            embedding_service = get_embedding_service()
             question_embedding = embedding_service.get_embedding(question)
             logger.info(f"[RAG Chat] Embedding generated, length={len(question_embedding)}")
         except Exception as e:
@@ -161,7 +165,8 @@ You are a helpful AI assistant for a recruiter analyzing a candidate's resume.
 
         try:
             logger.info(f"[RAG Chat] Calling Gemini LLM...")
-            response = LLM_MODEL.generate_content(prompt)
+            model = self._get_model()
+            response = model.generate_content(prompt)
             answer = response.text.strip()
             logger.info(f"[RAG Chat] LLM response received, length={len(answer)}")
             
@@ -175,5 +180,5 @@ You are a helpful AI assistant for a recruiter analyzing a candidate's resume.
             return {"error": f"Failed to generate answer: {str(e)}", "status": "error"}
 
 
-# Singleton instance for use throughout the application
-rag_service = ResumeRAGService()
+# Singleton removed
+# Use ResumeRAGService() directly
