@@ -23,8 +23,15 @@ const MatchResults = () => {
         try {
           const response = await http.get(`/jobs/${jobId}/match/`, { params: { session_id: sessionId, limit: 50 } });
           const results = response.data?.results || response.data || [];
-          if (results.length === 0) { navigate('/jobs'); return; }
-        } catch (err) { navigate('/jobs'); return; }
+          if (results && results.length > 0) {
+             store.setSearchResults(results);
+             store.setIsSearchMode(true);
+          }
+        } catch (err) { 
+           console.error('Fetch failed:', err);
+        } finally {
+           setIsLoading(false);
+        }
       };
       fetchResults();
     }

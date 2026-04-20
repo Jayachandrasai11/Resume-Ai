@@ -50,7 +50,7 @@ const JobDetails = () => {
     try {
       const typeMap = { 'smart': 'smart', 'semantic': 'deep', 'keyword': 'exact' };
       const backendType = typeMap[selectedMode] || 'smart';
-      const response = await http.get(`/jobs/${jobId}/match/?limit=20&threshold=0.3&strategy=cosine&type=${backendType}`);
+      const response = await http.get(`/jobs/${jobId}/match/?limit=20&threshold=0.1&strategy=cosine&type=${backendType}`);
       
       setSelectedJob(job);
       setSearchResults(response.data?.results || []);
