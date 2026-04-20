@@ -47,7 +47,7 @@ export const http = axios.create({
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
-  timeout: 15000, // 15 second default timeout (Render cold start handling)
+  timeout: 60000, // 60 second default timeout (Robust handling for Render Cold Starts)
 });
 
 // Helper function to get tokens from storage

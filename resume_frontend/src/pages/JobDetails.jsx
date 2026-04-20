@@ -52,8 +52,11 @@ const JobDetails = () => {
       const backendType = typeMap[selectedMode] || 'smart';
       const response = await http.get(`/jobs/${jobId}/match/?limit=20&threshold=0.1&strategy=cosine&type=${backendType}`);
       
+      // ✅ Handle direct array response from the new bulk-optimized backend
+      const results = Array.isArray(response.data) ? response.data : (response.data?.results || []);
+      
       setSelectedJob(job);
-      setSearchResults(response.data?.results || []);
+      setSearchResults(results);
       setIsSearchMode(true);
       setSearchType(selectedMode);
       navigate(`/jobs/${jobId}/results`);
