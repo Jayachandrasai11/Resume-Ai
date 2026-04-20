@@ -317,32 +317,43 @@ class MatchByJobIdView(APIView):
                 mode=mode
             )
 
-            # Store match results in JobCandidate model
+            # 🚀 HIGH-SPEED RESPONSE BUILDING
             match_results = []
+            new_entries = []
+            
+            # Fetch all needed candidates in ONE query instead of 50
+            candidate_ids = [result['candidate_id'] for result in results if result.get('candidate_id')]
+            candidates_map = {c.id: c for c in Candidate.objects.filter(id__in=candidate_ids)}
+            
             for result in results:
-                candidate_id = result.get('candidate_id')
-                if candidate_id:
-                    candidate = get_object_or_404(Candidate, id=candidate_id)
+                cid = result.get('candidate_id')
+                if cid in candidates_map:
+                    candidate = candidates_map[cid]
                     score = result.get('similarity_score', 0.0)
-
-                    # Create or update JobCandidate entry
-                    JobCandidate.objects.update_or_create(
-                        job=job,
-                        candidate=candidate,
-                        match_type=match_type,
-                        defaults={'match_score': score}
-                    )
-
-                    # Format response as per task requirements
+                    
+                    # Prepare Frontend Data
                     match_results.append({
-                        "candidate_id": candidate.id,
+                        "candidate_id": cid,
                         "name": candidate.name,
                         "skills": candidate.skills or [],
                         "experience_years": candidate.experience_years,
-                        "match_score": round(score * 100)  # Return as clean percentage
+                        "match_score": round(score * 100)
                     })
+                    
+                    # Prepare Historical Entry
+                    new_entries.append(JobCandidate(
+                        job=job,
+                        candidate=candidate,
+                        match_type=match_type,
+                        match_score=score
+                    ))
 
-            match_time = (time.time() - start_time) * 1000
+            # Bulk save history without blocking
+            if new_entries:
+                try:
+                    JobCandidate.objects.bulk_create(new_entries, ignore_conflicts=True)
+                except Exception as db_err:
+                    logger.warning(f"Bulk logging error: {db_err}")
 
             return Response(match_results, status=status.HTTP_200_OK)
 
