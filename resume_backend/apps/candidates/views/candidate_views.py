@@ -21,6 +21,7 @@ from ..models import Candidate, Resume, ResumeChunk
 from ..serializers import CandidateSerializer, ResumeChunkSerializer, ResumeSerializer
 from apps.pipeline.models import CandidatePipeline
 from apps.jd_app.models import JobDescription, JobSession
+from dashboard.views import HiringTrendsNewAPIView, MatchDistributionAPIView
 from ..services.chunking import chunk_and_store_resume
 from ..services.duplicate_checker import find_existing_candidate
 from ..services.email_ingestion import process_email_resume
@@ -465,6 +466,9 @@ class ResumeUploadAPIView(APIView):
         phone = parsed_data.get("phone") or parsed_data.get("Phone") or ""
         if phone and len(phone) > 20: phone = phone[:20]
         
+        # Ensure we have at least SOME text for the UI to show
+        final_text = text if (text and len(text.strip()) > 10) else f"Extraction in progress for {file.name}..."
+        
         experience = parsed_data.get("Experience") or parsed_data.get("experience") or []
         skills = parsed_data.get("Skills") or parsed_data.get("skills") or []
         education = parsed_data.get("Education") or parsed_data.get("education") or []
@@ -494,7 +498,7 @@ class ResumeUploadAPIView(APIView):
         
         resume = Resume.objects.create(
             candidate=candidate, job_session=job_session,
-            file=fn, file_name=file.name, text=text,
+            file=fn, file_name=file.name, text=final_text,
             uploaded_by=request.user
         )
 

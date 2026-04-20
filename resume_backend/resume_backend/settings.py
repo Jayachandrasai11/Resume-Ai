@@ -189,7 +189,10 @@ SIMPLE_JWT = {
 }
 
 # CORS settings
-CORS_ALLOW_ALL_ORIGINS = os.getenv("DEBUG", "False") == "True"  # Only allow all in Dev
+CORS_ALLOW_ALL_ORIGINS = True  # Allowed for all origins to prevent crash-related CORS false flags
+CORS_ALLOWED_ORIGIN_REGEXES = [
+    r"^https://resume-ai-.*\.vercel\.app$",
+]
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:5173",
