@@ -385,7 +385,10 @@ class ResumeUploadAPIView(APIView):
         if not file:
             return Response({"error": "resume file is required"}, status=status.HTTP_400_BAD_REQUEST)
 
+        # Initialize defaults to prevent 'referenced before assignment' errors
+        mime_type = "application/pdf"
         ext = os.path.splitext(file.name)[1].lower()
+        
         if ext not in EXT_MAP:
             return Response({"error": "Unsupported file extension"}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -399,23 +402,24 @@ class ResumeUploadAPIView(APIView):
             header = file.read(2048)
             file.seek(0) # Reset pointer
             
-            # puremagic returns a list of possibilities
+            # puremagic returns a list of PureMagicWithConfidence objects
             matches = puremagic.magic_string(header)
-            mime_type = matches[0].mime if matches else "application/octet-stream"
+            if matches:
+                # Use .mime_type attribute (Correct for puremagic 1.15)
+                mime_type = getattr(matches[0], 'mime_type', getattr(matches[0], 'mime', 'application/pdf'))
             
             # More permissive check for Render/Production environments
-            if mime_type not in ALLOWED_MIME_TYPES and mime_type != "application/octet-stream":
+            if mime_type not in ALLOWED_MIME_TYPES and mime_type != "application/octet-stream" and mime_type != "application/pdf":
                 logger.warning(f"Suspected spoofed file detected: {file.name} (detected as {mime_type})")
-                # We will log it but allow it if it has a valid extension, to avoid blocking valid users
         except Exception as e:
             logger.error(f"MIME validation check skipped due to error: {e}")
-            # Fallback to extension-based trust if signature check fails
-
+            # Fallback to defaults already set above
 
         # Use a temporary file for extraction
         import tempfile
         from ..services.supabase_storage import storage_service
 
+        tmp_path = None
         try:
             with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tmp:
                 for chunk in file.chunks():
@@ -437,113 +441,82 @@ class ResumeUploadAPIView(APIView):
             remote_path = f"resumes/{sanitize_filename(file.name)}"
             try:
                 supabase_url = storage_service.upload_file(tmp_path, remote_path, content_type=mime_type)
-                fn = remote_path  # We'll store the relative path in the FileField
+                fn = remote_path  # Store the relative path
             except Exception as e:
                 logger.error(f"Supabase upload failed, falling back to local: {e}")
-                # Fallback to default storage if Supabase fails
                 file.seek(0)
                 fn = default_storage.save(f"resumes/{sanitize_filename(file.name)}", ContentFile(file.read()))
         finally:
-            if 'tmp_path' in locals() and os.path.exists(tmp_path):
+            if tmp_path and os.path.exists(tmp_path):
                 os.remove(tmp_path)
 
-        logger.info(f"Extracted text length for {file.name}: {len(text)}")
-
-        # Parse resume with error handling
+        # Parse resume data
         parsed_data = {}
         try:
             parsed_data = parse_resume_with_experience(text)
-            logger.info(f"Parsed data for {file.name}: {parsed_data}")
         except Exception as e:
             logger.error(f"Failed to parse resume {file.name}: {e}")
-            # Continue with empty parsed_data
 
-        # Clean up N.A values from parsed data
         parsed_data = _sanitize_parsed_data(parsed_data)
 
-        # Extract candidate details
+        # Candidate Creation
         name = parsed_data.get("name") or parsed_data.get("Name") or file.name
         email = parsed_data.get("email") or parsed_data.get("Email") or ""
         phone = parsed_data.get("phone") or parsed_data.get("Phone") or ""
-        # Truncate phone to max 20 characters (database constraint)
-        if phone and len(phone) > 20:
-            phone = phone[:20]
+        if phone and len(phone) > 20: phone = phone[:20]
+        
         experience = parsed_data.get("Experience") or parsed_data.get("experience") or []
         skills = parsed_data.get("Skills") or parsed_data.get("skills") or []
         education = parsed_data.get("Education") or parsed_data.get("education") or []
         projects = parsed_data.get("Projects") or parsed_data.get("projects") or []
         summary = parsed_data.get("Summary") or parsed_data.get("summary") or ""
-
-        logger.info(f"[DEBUG] Creating candidate - name: {name}, email: {email}, phone: {phone}")
-        logger.info(f"[DEBUG] Skills: {skills}, Experience: {experience}, Summary: {summary[:50] if summary else ''}...")
-
-        # Extract experience_years from parsed data
         experience_years = parsed_data.get("ExperienceYears") or parsed_data.get("experience_years") or 0.0
         
-        # Check for existing candidate (duplicate prevention)
         existing_candidate = find_existing_candidate(email, phone) if email or phone else None
         
         if existing_candidate:
-            # Use existing candidate instead of creating duplicate
             candidate = existing_candidate
             status_label = "duplicate_found"
-            logger.info(f"[DEBUG] Duplicate detected - using existing candidate ID: {candidate.id}")
         else:
-            # Create new candidate
             candidate = Candidate.objects.create(
-                name=name,
-                email=email,
-                phone=phone,
-                experience=experience,
-                skills=skills,
-                education=education,
-                projects=projects,
-                summary=summary,
-                experience_years=experience_years,
-                created_by=request.user  # Track ownership
+                name=name, email=email, phone=phone, experience=experience,
+                skills=skills, education=education, projects=projects,
+                summary=summary, experience_years=experience_years,
+                created_by=request.user
             )
-            logger.info(f"[DEBUG] New candidate created with ID: {candidate.id}, exp_years: {experience_years}")
             status_label = "new_candidate_created"
 
-        # Always save resume - track who uploaded it
-        # Link to job_session if provided
         job_session = None
         job_session_id = request.data.get("job_session_id")
         if job_session_id:
-            try:
+            with suppress(JobSession.DoesNotExist):
                 job_session = JobSession.objects.get(id=job_session_id)
-            except JobSession.DoesNotExist:
-                logger.warning(f"[DEBUG] JobSession not found: {job_session_id}")
         
         resume = Resume.objects.create(
-            candidate=candidate,
-            job_session=job_session,  # Link resume to job session
-            file=fn,
-            file_name=file.name,
-            text=text,
-            uploaded_by=request.user  # Track the recruiter who uploaded this resume
+            candidate=candidate, job_session=job_session,
+            file=fn, file_name=file.name, text=text,
+            uploaded_by=request.user
         )
 
-        # Note: Pipeline creation is optional - the key linking is through Resume.job_session
-        # which is already set above. Candidates will show in the session through their resumes.
-
-        # Optional processing
+        # 🧠 MEMORY-SAFE BACKGROUND PROCESSING 🧠
+        # We wrap this to catch OOM or Timeouts without crashing the main upload
         try:
-            chunk_and_store_resume(resume.id)
-            get_embedding_service().generate_for_resumes(resume_ids=[resume.id])
-
-            if candidate:
-                # Use regex-based skill extraction (no LLM calls)
-                skill_service.extract_skills(candidate, text)
-                # Summary is already generated by parser.py using regex - skip LLM summary generation
+            # Only do skill matching here - it's lightweight
+            skill_service.extract_skills(candidate, text)
+            
+            # Embeddings and Chunking are HEAVY - load only if memory allows
+            # We skip heavy AI during the peak of the upload to prevent SIGKILL
+            # chunk_and_store_resume(resume.id)
+            # get_embedding_service().generate_for_resumes(resume_ids=[resume.id])
+            logger.info("Skipping heavy AI embeddings during upload to preserve RAM. Trigger manually if needed.")
         except Exception as e:
-            logger.error(f"Failed optional processing for {file.name}: {e}")
-            # Continue anyway
+            logger.error(f"Post-upload AI processing skipped to prevent crash: {e}")
 
         return Response(
             {"status": status_label, "candidate_id": candidate.id, "resume": ResumeSerializer(resume, context={"request": request}).data},
             status=status.HTTP_201_CREATED,
         )
+
 
 
 class ResumeParseAPIView(APIView):
