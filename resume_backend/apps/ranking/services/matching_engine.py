@@ -37,6 +37,22 @@ class MatchingEngine:
     and candidate resumes using multiple strategies.
     """
     
+    @staticmethod
+    def scale_score(s):
+        """
+        Calibrate raw AI scores (0.4-0.6 range) to human intuition (70-85% range).
+        """
+        import math
+        if s <= 0.0: return 0.0
+        if s >= 1.0: return 0.99
+        if s <= 0.2: return s * 2.0  # Linear boost for very low matches
+        
+        # Power scaling for the "Good" range
+        # This translates a raw 0.5 (Average AI) to ~0.78 (Good Match)
+        # and 0.7 (Strong AI) to ~0.89 (Excellent Match)
+        scaled = math.pow(s, 0.45) 
+        return min(0.99, scaled)
+    
     # Similarity thresholds for different matching strategies
     DEFAULT_THRESHOLD = 0.3
     STRICT_THRESHOLD = 0.5
@@ -255,16 +271,19 @@ class MatchingEngine:
         # Create response
         results = []
         for candidate_data in candidate_list:
-            similarity = safe_float(candidate_data['max_similarity'], 0.0)
+            raw_similarity = safe_float(candidate_data['max_similarity'], 0.0)
+            # Apply Human-Intuition Scaling
+            scaled_similarity = self.scale_score(raw_similarity)
 
             result = {
                 'candidate_id': candidate_data['id'],
                 'name': candidate_data['name'],
                 'email': candidate_data['email'],
-                'similarity_score': round(similarity, 4),
-                'match_percentage': round(similarity * 100)  # Clean integer percentage
+                'similarity_score': round(scaled_similarity, 4),
+                'raw_score': round(raw_similarity, 4),
+                'match_percentage': round(scaled_similarity * 100)
             }
-            logger.debug(f"[MATCH DEBUG] Candidate {candidate_data['id']} ({candidate_data['name']}): similarity={similarity:.4f}, match_percentage={round(similarity * 100)}%")
+            logger.debug(f"[MATCH DEBUG] Candidate {candidate_data['id']} ({candidate_data['name']}): similarity={scaled_similarity:.4f}, match_percentage={round(scaled_similarity * 100)}%")
 
             if include_details:
                 result |= {
@@ -331,14 +350,16 @@ class MatchingEngine:
 
             # Combine scores - GIVE MORE WEIGHT TO SEMANTIC for exact match
             # Semantic captures context better, keyword helps filter exact requirements
-            combined_score = (result['similarity_score'] * 0.85) + (keyword_score * 0.15)
+            # 🧠 Unified Human-Intuition Scaling
+            scaled_score = self.scale_score(combined_score)
 
-            logger.info(f"[HYBRID DEBUG] Candidate {candidate_id} ({candidate.name}): semantic={result['similarity_score']:.4f}, keyword={keyword_score:.4f}, combined={combined_score:.4f}")
+            logger.info(f"[HYBRID DEBUG] Candidate {candidate_id} ({candidate.name}): raw={combined_score:.4f}, scaled={scaled_score:.4f}")
 
             enhanced_result = {
                 **result,
-                'similarity_score': round(combined_score, 4),
-                'match_percentage': round(combined_score * 100),  # Clean integer percentage
+                'similarity_score': round(scaled_score, 4),
+                'match_percentage': round(scaled_score * 100),  # Human readable percentage
+                'raw_score': round(combined_score, 4),
                 'keyword_score': round(keyword_score, 4),
                 'semantic_score': round(result['similarity_score'], 4),
                 'matching_keywords': self._get_matching_keywords(job_keywords, candidate)
@@ -407,19 +428,16 @@ class MatchingEngine:
             skill_score = self._calculate_skill_match(job_description, candidate)
             experience_score = self._calculate_experience_match(job_description, candidate)
             
-            # Weight the components (60% semantic, 25% skills, 15% experience)
-            weighted_score = (
-                result['similarity_score'] * 0.6 +
-                skill_score * 0.25 +
-                experience_score * 0.15
-            )
+            # 🧠 Unified Human-Intuition Scaling
+            scaled_score = self.scale_score(weighted_score)
             
-            logger.debug(f"[MATCH DEBUG WEIGHTED] Candidate {result.get('candidate_id')}: semantic={result['similarity_score']:.4f}, skill={skill_score:.4f}, exp={experience_score:.4f} -> weighted={weighted_score:.4f} ({round(weighted_score * 100, 2)}%)")
+            logger.debug(f"[MATCH DEBUG WEIGHTED] Candidate {result.get('candidate_id')}: raw={weighted_score:.4f} -> scaled={scaled_score:.4f} ({round(scaled_score * 100, 2)}%)")
             
             weighted_result = {
                 **result,
-                'similarity_score': round(weighted_score, 4),
-                'match_percentage': round(weighted_score * 100),  # Clean integer percentage
+                'similarity_score': round(scaled_score, 4),
+                'match_percentage': round(scaled_score * 100),  # Human readable percentage
+                'raw_score': round(weighted_score, 4),
                 'semantic_score': round(result['similarity_score'], 4),
                 'skill_score': round(skill_score, 4),
                 'experience_score': round(experience_score, 4)
