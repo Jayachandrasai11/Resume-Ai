@@ -56,20 +56,20 @@ const MatchCandidates = () => {
 
       let results = [];
       let strategy = 'cosine';
-      let threshold = 0.3;
+      let threshold = 0.5;
       let mode = matchType === 'deep' ? 'semantic' : matchType === 'exact' ? 'keyword' : 'smart';
       
-      if (matchType === 'deep') threshold = 0.2;
-      if (matchType === 'exact') threshold = 0.5;
+      if (matchType === 'deep') threshold = 0.4;
+      if (matchType === 'exact') threshold = 0.7;
 
-      const response = await api.matchByJobId(jobId, 50, threshold, strategy, mode);
+      const response = await api.matchByJobId(jobId, 30, threshold, strategy, mode);
       results = Array.isArray(response.data) ? response.data : (response.data?.results || []);
       
       sessionStorage.setItem(`match_results_${jobId}`, JSON.stringify(results));
       sessionStorage.setItem(`match_mode_${jobId}`, matchType);
       localStorage.setItem('last_match_mode', matchType);
       
-      store.setSearchResults(results);
+      store.setSearchResults(results || []);
       store.setSearchType(matchType);
       store.setIsSearchMode(true);
       

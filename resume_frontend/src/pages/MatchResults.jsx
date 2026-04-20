@@ -44,7 +44,7 @@ const MatchResults = () => {
       try {
         setIsLoading(true);
         const mode = searchType || 'smart';
-        const threshold = mode === 'deep' ? 0.2 : mode === 'exact' ? 0.5 : 0.3;
+        const threshold = mode === 'deep' ? 0.4 : mode === 'exact' ? 0.7 : 0.5;
         const backendMode = mode === 'deep' ? 'semantic' : mode === 'exact' ? 'keyword' : 'smart';
         
         const response = await http.get(`/jobs/${jobId}/match/`, { 

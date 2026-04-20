@@ -246,9 +246,13 @@ class MatchingEngine:
             .distinct()
         )
         
-        # Convert to list and limit results
+        # Convert to list and limit results - use iterator for memory efficiency
         candidate_list = list(queryset[:limit])
-        logger.info(f"[COSINE DEBUG] Found {len(candidate_list)} matching candidates after threshold filter")
+        logger.info(f"[COSINE DEBUG] Found {len(candidate_list)} candidates (limit={limit})")
+        
+        # Early exit if no candidates found
+        if len(candidate_list) == 0:
+            return []
         if len(candidate_list) == 0:
             logger.info(f"[COSINE DEBUG] No candidates found - checking raw similarities...")
             # Check what similarities exist without threshold

@@ -283,8 +283,8 @@ class MatchByJobIdView(APIView):
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        limit = int(request.GET.get('limit', 20))  # Default to 20 as per task
-        threshold = float(request.GET.get('threshold', 0.0))  # Lower threshold for better results
+        limit = min(int(request.GET.get('limit', 20)), 30)  # Cap at 30 to prevent OOM
+        threshold = float(request.GET.get('threshold', 0.5))  # Default to 0.5
         strategy = request.GET.get('strategy', 'cosine')
         # Read mode/type parameter and map to internal mode
         # Frontend sends 'mode', some callers may use 'type' - accept both
@@ -292,15 +292,19 @@ class MatchByJobIdView(APIView):
         if mode_param == 'smart':
             match_type = 'smart'
             mode = 'smart'
+            threshold = max(threshold, 0.5)  # Ensure minimum threshold
         elif mode_param == 'deep':
             match_type = 'deep'
             mode = 'semantic'
+            threshold = max(threshold, 0.4)
         elif mode_param == 'exact':
             match_type = 'exact'
             mode = 'keyword'
+            threshold = max(threshold, 0.7)
         else:
             match_type = 'smart'
-            mode = 'smart'  # default
+            mode = 'smart'
+            threshold = max(threshold, 0.5)
 
         # Use recruiter_id from request user
         recruiter_id = request.user.id
