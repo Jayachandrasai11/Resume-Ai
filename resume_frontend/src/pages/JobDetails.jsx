@@ -55,11 +55,17 @@ const JobDetails = () => {
       // ✅ Handle direct array response from the new bulk-optimized backend
       const results = Array.isArray(response.data) ? response.data : (response.data?.results || []);
       
+      // 💾 PERSISTENCE LAYER: Save to session so we don't lose results on navigation sync
+      sessionStorage.setItem(`match_results_${jobId}`, JSON.stringify(results));
+      sessionStorage.setItem(`match_mode_${jobId}`, selectedMode);
+
       setSelectedJob(job);
       setSearchResults(results);
       setIsSearchMode(true);
       setSearchType(selectedMode);
-      navigate(`/jobs/${jobId}/results`);
+
+      // 🏎️ Small buffer for state propagation
+      setTimeout(() => navigate(`/jobs/${jobId}/results`), 50);
     } catch (err) {
       alert('Neural link interrupted. Please retry.');
     } finally {

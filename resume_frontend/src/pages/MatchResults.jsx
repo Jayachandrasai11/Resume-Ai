@@ -15,14 +15,40 @@ const MatchResults = () => {
   const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    const sessionId = localStorage.getItem('job_session_id') || localStorage.getItem('session_id');
-    if (!sessionId) { navigate('/jobs'); return; }
+    // 🛡️ Robust Session Recovery 🛡️
+    const sessionId = localStorage.getItem('job_session_id') || 
+                      sessionStorage.getItem('job_session_id') || 
+                      localStorage.getItem('session_id') || 
+                      sessionStorage.getItem('session_id');
+
+    // 🔬 Data Integrity Recover Layer
+    const recoveryData = sessionStorage.getItem(`match_results_${jobId}`);
+    const recoveryMode = sessionStorage.getItem(`match_mode_${jobId}`);
+    
+    if (recoveryData && (!isSearchMode || searchResults.length === 0)) {
+        console.log('📦 Recovering AI search from persistence layer...');
+        const parsed = JSON.parse(recoveryData);
+        store.setSearchResults(parsed);
+        store.setIsSearchMode(true);
+        if (recoveryMode) store.setSearchType(recoveryMode);
+        setIsLoading(false);
+        return;
+    }
+
+    const hasInitialData = isSearchMode && searchResults && searchResults.length > 0;
+    
+    if (!sessionId && !hasInitialData && !recoveryData) { 
+      console.warn('Session trace lost. Resetting to secure perimeter.');
+      navigate('/jobs'); 
+      return; 
+    }
 
     if (!isSearchMode || !searchResults || searchResults.length === 0) {
       const fetchResults = async () => {
         try {
+          setIsLoading(true);
           const response = await http.get(`/jobs/${jobId}/match/`, { params: { session_id: sessionId, limit: 50 } });
-          const results = response.data?.results || response.data || [];
+          const results = Array.isArray(response.data) ? response.data : (response.data?.results || []);
           if (results && results.length > 0) {
              store.setSearchResults(results);
              store.setIsSearchMode(true);
@@ -34,6 +60,8 @@ const MatchResults = () => {
         }
       };
       fetchResults();
+    } else {
+      setIsLoading(false);
     }
 
     const timer = setTimeout(() => {
@@ -41,7 +69,7 @@ const MatchResults = () => {
       setIsLoading(false);
     }, 500);
     return () => clearTimeout(timer);
-  }, [jobId, navigate, isSearchMode, searchResults]);
+  }, [jobId, navigate, isSearchMode, searchResults.length]);
 
   const hasResults = isSearchMode && searchResults && searchResults.length > 0;
 
