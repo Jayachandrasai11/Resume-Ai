@@ -77,9 +77,9 @@ urlpatterns = [
     path("api/root", api_root, name="api-root"),
 
     # 🦾 CORE SERVICES (Already prefixed with api/ in their respective urls.py)
-    path("", include("apps.jd_app.urls")),
+    path("api/jobs/", include("apps.jd_app.urls")),
     path("", include("apps.candidates.urls")),
-    path("", include("apps.pipeline.urls")),
+    path("api/pipeline/", include("apps.pipeline.urls")),
     path("api/auth/", include("apps.accounts.urls")),
     path("api/dashboard/", include("dashboard.urls")),
 
