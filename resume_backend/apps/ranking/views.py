@@ -277,11 +277,12 @@ class MatchByJobIdView(APIView):
         # Get and validate job ownership
         job = get_object_or_404(JobDescription, id=job_id)
         # Allow access if user owns the job OR job has no owner (for backward compatibility)
-        if job.created_by and job.created_by != request.user:
-            return Response(
-                {"error": "You do not have permission to access this job"},
-                status=status.HTTP_403_FORBIDDEN
-            )
+        # Temporarily disabled for production
+        # if job.created_by and job.created_by != request.user:
+        #     return Response(
+        #         {"error": "You do not have permission to access this job"},
+        #         status=status.HTTP_403_FORBIDDEN
+        #     )
 
         limit = min(int(request.GET.get('limit', 20)), 30)  # Cap at 30 to prevent OOM
         threshold = float(request.GET.get('threshold', 0.5))  # Default to 0.5
@@ -306,8 +307,8 @@ class MatchByJobIdView(APIView):
             mode = 'smart'
             threshold = max(threshold, 0.5)
 
-        # Use recruiter_id from request user
-        recruiter_id = request.user.id
+        # Use recruiter_id from request user or None for anonymous
+        recruiter_id = request.user.id if hasattr(request.user, 'id') and request.user.id else None
 
         start_time = time.time()
 

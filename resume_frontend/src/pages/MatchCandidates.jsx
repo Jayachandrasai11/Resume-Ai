@@ -65,7 +65,7 @@ const MatchCandidates = () => {
       const response = await api.matchByJobId(jobId, 30, threshold, strategy, mode);
       results = Array.isArray(response.data) ? response.data : (response.data?.results || []);
       
-      sessionStorage.setItem(`match_results_${jobId}`, JSON.stringify(results));
+      sessionStorage.setItem(`match_results_${jobId}`, JSON.stringify(results || []));
       sessionStorage.setItem(`match_mode_${jobId}`, matchType);
       localStorage.setItem('last_match_mode', matchType);
       

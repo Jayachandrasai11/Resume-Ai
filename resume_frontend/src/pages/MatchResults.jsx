@@ -35,7 +35,6 @@ const MatchResults = () => {
     const hasInitialData = isSearchMode && searchResults && searchResults.length > 0;
     
     if (!sessionId && !hasInitialData && !recoveryData) { 
-      console.warn('Session trace lost. Resetting to secure perimeter.');
       navigate('/jobs'); 
       return; 
     }
@@ -50,7 +49,7 @@ const MatchResults = () => {
         const response = await http.get(`/jobs/${jobId}/match/`, { 
           params: { 
             session_id: sessionId, 
-            limit: 50,
+            limit: 30,
             threshold: threshold,
             mode: backendMode
           } 
@@ -68,7 +67,9 @@ const MatchResults = () => {
       }
     };
 
-   if (!isSearchMode || !searchResults || searchResults.length === 0) {
+    if (!isSearchMode || !searchResults || searchResults.length === 0) {
+    const shouldFetch = !isSearchMode || !searchResults || searchResults.length === 0;
+    if (shouldFetch && !recoveryData) {
       fetchResults();
     } else {
       setIsLoading(false);

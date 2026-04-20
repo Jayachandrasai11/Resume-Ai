@@ -16,7 +16,7 @@ export const jobApi = {
   deleteJobDescription: (id) => http.delete(`jobs/${id}/`),
 
   // Matching & Ranking
-  matchByJobId: (jobId, limit = 50, threshold = 0.3, strategy = 'cosine', mode = 'smart') => 
-    http.get(`ranking/match-by-job/?job_id=${jobId}&limit=${limit}&threshold=${threshold}&strategy=${strategy}&mode=${mode}`),
-  matchCandidates: (jobId, count = 50) => http.get(`match-candidates?job_id=${jobId}&count=${count}`),
+  matchByJobId: (jobId, limit = 30, threshold = 0.5, strategy = 'cosine', mode = 'smart') => 
+    http.get(`jobs/${jobId}/match/?limit=${limit}&threshold=${threshold}&strategy=${strategy}&mode=${mode}`),
+  matchCandidates: (jobId, count = 30) => http.get(`match-candidates?job_id=${jobId}&count=${count}`),
 };
