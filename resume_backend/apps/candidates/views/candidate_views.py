@@ -426,9 +426,12 @@ class ResumeUploadAPIView(APIView):
             text = ""
             try:
                 text = EXT_MAP[ext](tmp_path)
+                if not text.strip():
+                    logger.warning(f"Extracted text is empty for {file.name}")
+                    text = f"Warning: No readable text found in {file.name}. This might be a scanned image-only PDF."
             except Exception as e:
                 logger.error(f"Failed to extract text from {file.name}: {e}")
-                text = f"Resume: {file.name}"
+                text = f"Resume Extraction Error: Technical failure reading {file.name}"
 
             # Upload to Supabase Storage
             remote_path = f"resumes/{sanitize_filename(file.name)}"
