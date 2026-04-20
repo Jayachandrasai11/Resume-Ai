@@ -294,7 +294,8 @@ const CandidateDetail = () => {
                     <ResumeTextDisplay text={candidate.resumes[0].text} />
                   ) : (
                     <div className="p-8 text-center bg-slate-900/20 rounded-2xl border border-dashed border-white/10">
-                       <p className="text-[10px] font-black text-slate-700 uppercase tracking-widest">No Parsed Metadata Available</p>
+                       <p className="text-[10px] font-black text-indigo-400/60 animate-pulse uppercase tracking-[0.3em]">AI Synthesis in Progress...</p>
+                       <p className="text-[9px] text-slate-600 mt-2 uppercase font-bold">Document text is being indexed for matching</p>
                     </div>
                   )}
                 </>
