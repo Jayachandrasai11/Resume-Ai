@@ -587,7 +587,7 @@ class MatchingEngine:
             job_embedding = None
             use_tfidf    = False
 
-            if job.cached_embedding:
+            if job.cached_embedding is not None:
                 job_embedding = list(job.cached_embedding)
                 logger.info(f"✅ CACHED embedding for job {job_id} (0 Gemini calls)")
             else:

@@ -337,7 +337,7 @@ class MatchByJobIdView(APIView):
             }, status=status.HTTP_202_ACCEPTED)
 
         # 🆕 ASYNC SIGNALING: If job has NO cached embedding, start thread and return 202
-        if not job.cached_embedding:
+        if job.cached_embedding is None:
             # Check if we should use fallback mode (e.g. if we know AI is down)
             # For now, we always try to start the neural match
             matching_tracker.set_status(job_id, 'processing', 'Initiating AI analysis sequence...')
