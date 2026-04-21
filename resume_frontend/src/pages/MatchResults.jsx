@@ -13,35 +13,68 @@ const MatchResults = () => {
   const [selectedCandidates, setSelectedCandidatesLocal] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
+  const [fetchError, setFetchError] = useState(null);
+  const [isRetrying, setIsRetrying] = useState(false);
+
+  // ── Retry handler ────────────────────────────────────────────────────────
+  const runMatch = async (mode) => {
+    setIsRetrying(true);
+    setFetchError(null);
+    setIsLoading(true);
+    try {
+      const modeKey = mode || searchType || 'smart';
+      const response = await http.get(
+        `/jobs/${jobId}/match/?limit=20&threshold=0.1&strategy=cosine&type=${modeKey}`,
+        { timeout: 120000 }  // 2 minutes — covers Render cold start
+      );
+      const results = Array.isArray(response.data)
+        ? response.data
+        : (response.data?.results || []);
+      sessionStorage.setItem(`match_results_${jobId}`, JSON.stringify(results));
+      sessionStorage.setItem(`match_mode_${jobId}`, modeKey);
+      store.setSearchResults(results);
+      store.setIsSearchMode(true);
+      store.setSearchType(modeKey);
+    } catch (err) {
+      console.error('Match fetch failed:', err);
+      setFetchError(err.message || 'Server timeout — please retry.');
+    } finally {
+      setIsLoading(false);
+      setHasInitialized(true);
+      setIsRetrying(false);
+    }
+  };
 
   useEffect(() => {
-    // ALWAYS check sessionStorage first - this is the source of truth after navigation
+    // 1️⃣ Best case: sessionStorage has persisted results from JobDetails page
     const recoveryData = sessionStorage.getItem(`match_results_${jobId}`);
     const recoveryMode = sessionStorage.getItem(`match_mode_${jobId}`);
-    
+
     if (recoveryData) {
+      try {
         const parsed = JSON.parse(recoveryData);
         if (parsed && parsed.length > 0) {
-            store.setSearchResults(parsed);
-            store.setIsSearchMode(true);
-            if (recoveryMode) store.setSearchType(recoveryMode);
-            setIsLoading(false);
-            setHasInitialized(true);
-            return;
+          store.setSearchResults(parsed);
+          store.setIsSearchMode(true);
+          if (recoveryMode) store.setSearchType(recoveryMode);
+          setIsLoading(false);
+          setHasInitialized(true);
+          return;
         }
+      } catch (_) { /* ignore parse errors */ }
     }
 
-    // If no sessionStorage data, use store data if available
+    // 2️⃣ Good case: Zustand store already has data (normal flow)
     if (isSearchMode && searchResults && searchResults.length > 0) {
-        setIsLoading(false);
-        setHasInitialized(true);
-        return;
+      setIsLoading(false);
+      setHasInitialized(true);
+      return;
     }
 
-    // Otherwise navigate back to match page
-    navigate(`/jobs/${jobId}/match`);
-    return () => {};
-  }, []);
+    // 3️⃣ Recovery case: no data at all — fetch directly instead of redirecting
+    // This handles the case where Render killed the worker and the page loaded with no state
+    runMatch(recoveryMode || 'smart');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const hasResults = isSearchMode && searchResults && searchResults.length > 0;
 
@@ -109,12 +142,42 @@ const MatchResults = () => {
     return (
       <div className="max-w-xl mx-auto mt-20 p-12 glass-card text-center">
         <div className="w-20 h-20 bg-slate-900 rounded-full flex items-center justify-center mx-auto mb-6">
-           <svg className="w-10 h-10 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 005.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-           </svg>
+          {fetchError ? (
+            <svg className="w-10 h-10 text-red-500/50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+            </svg>
+          ) : (
+            <svg className="w-10 h-10 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 005.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
+          )}
         </div>
-        <h2 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">No Active Matches</h2>
-        <button onClick={() => navigate(`/jobs/${jobId}/match`)} className="mt-8 px-8 py-3 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-500 transition-all shadow-lg active:scale-95">Re-run Match</button>
+        <h2 className="text-xl font-black text-white mb-2 uppercase tracking-tighter">
+          {fetchError ? 'Server Timeout' : 'No Active Matches'}
+        </h2>
+        {fetchError && (
+          <p className="text-xs text-red-400/80 font-mono mt-2 mb-4 px-4 break-words">{fetchError}</p>
+        )}
+        <p className="text-slate-500 text-xs mt-2">
+          {fetchError
+            ? 'The AI server is starting up. This is normal on Render free tier. Please retry in 30 seconds.'
+            : 'No candidates matched this job. Try lowering the threshold.'}
+        </p>
+        <div className="flex gap-3 justify-center mt-8">
+          <button
+            onClick={() => runMatch(searchType || 'smart')}
+            disabled={isRetrying}
+            className="px-8 py-3 bg-indigo-600 text-white rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-indigo-500 transition-all shadow-lg active:scale-95 disabled:opacity-50"
+          >
+            {isRetrying ? 'Retrying...' : 'Retry Match'}
+          </button>
+          <button
+            onClick={() => navigate(`/jobs/${jobId}`)}
+            className="px-6 py-3 bg-white/5 text-slate-400 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-white/10 transition-all"
+          >
+            Back to Job
+          </button>
+        </div>
       </div>
     );
   }

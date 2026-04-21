@@ -1,0 +1,13 @@
+services:
+  - type: web
+    name: resume-ai-backend
+    env: python
+    buildCommand: "pip install -r requirements.txt && python manage.py migrate --noinput && python manage.py collectstatic --noinput"
+    startCommand: "gunicorn resume_backend.wsgi:application --config gunicorn.conf.py"
+    envVars:
+      - key: PYTHONUNBUFFERED
+        value: "1"
+      - key: WEB_CONCURRENCY
+        value: "1"
+      - key: DJANGO_SETTINGS_MODULE
+        value: resume_backend.settings
