@@ -115,6 +115,10 @@ class MatchingEngine:
             try:
                 job_embedding = embedding_service.get_embedding(job_description)
             except Exception as e:
+                err_str = str(e).lower()
+                if any(k in err_str for k in ["429", "quota", "resource exhausted", "404"]):
+                    logger.warning(f"⚠️ Gemini fallback to TF-IDF matching due to: {err_str}")
+                    return self._tfidf_match_by_text(job_description, limit, threshold, recruiter_id)
                 logger.error(f"❌ Error generating job embedding: {str(e)}")
                 return []
             
@@ -157,8 +161,56 @@ class MatchingEngine:
             return results
             
         except Exception as e:
+            err_str = str(e).lower()
+            if any(k in err_str for k in ["429", "quota", "resource exhausted", "limit", "404"]):
+                logger.warning(f"⚠️ Gemini fallback to TF-IDF matching: {err_str}")
+                return self._tfidf_match_by_text(job_description, limit, threshold, recruiter_id)
             logger.error(f"Error in match_candidates: {e}")
             return []
+
+    def _tfidf_match_by_text(
+        self,
+        job_description: str,
+        limit: int,
+        threshold: float,
+        recruiter_id: int = None
+    ) -> List[Dict[str, Any]]:
+        """Fallback to TF-IDF when semantic matching is unavailable."""
+        from apps.candidates.services.tfidf_matcher import tfidf_matcher
+        
+        # Build candidate data from DB (resume text + skills)
+        qs = Resume.objects.select_related('candidate').prefetch_related('candidate__skills_m2m')
+        if recruiter_id:
+            qs = qs.filter(uploaded_by_id=recruiter_id)
+
+        candidates_data = []
+        seen_ids = set()
+        # Limit to 500 resumes for performance in fallback mode
+        for resume in qs.order_by('-uploaded_at')[:500]:
+            cand = resume.candidate
+            if not cand or cand.id in seen_ids:
+                continue
+            seen_ids.add(cand.id)
+            candidates_data.append({
+                "candidate_id": cand.id,
+                "resume_text":  resume.text or "",
+                "name":         cand.name or "",
+                "email":        cand.email or "",
+                "skills":       cand.skills or [],
+                "experience_years": cand.experience_years or 0,
+            })
+
+        # Extract skills for better TF-IDF matching
+        job_skills = list(self._extract_skills_from_text(job_description))
+
+        results = tfidf_matcher.match(
+            job_description=job_description,
+            candidates_data=candidates_data,
+            threshold=threshold,
+            limit=limit,
+            job_skills=job_skills,
+        )
+        return results
     
     def _cosine_similarity_match(
         self,
@@ -354,6 +406,7 @@ class MatchingEngine:
 
             # Combine scores - GIVE MORE WEIGHT TO SEMANTIC for exact match
             # Semantic captures context better, keyword helps filter exact requirements
+            combined_score = (result['raw_score'] * 0.6) + (keyword_score * 0.4)
             # 🧠 Unified Human-Intuition Scaling
             scaled_score = self.scale_score(combined_score)
 
@@ -420,6 +473,7 @@ class MatchingEngine:
         semantic_results = self._cosine_similarity_match(job_embedding, limit * 2, threshold * 0.7, False, recruiter_id, job_skills=job_skills)
         
         # Pre-fetch all relevant candidates in one query with prefetch_related to avoid N+1 slow queries
+        candidate_ids = [result['candidate_id'] for result in semantic_results]
         candidates_map = {c.id: c for c in Candidate.objects.filter(id__in=candidate_ids).prefetch_related('skills_m2m')}
         
         weighted_results = []
@@ -430,6 +484,9 @@ class MatchingEngine:
             # Calculate weighted score components
             skill_score = self._calculate_skill_match(job_description, candidate)
             experience_score = self._calculate_experience_match(job_description, candidate)
+            
+            # Combine scores
+            weighted_score = (result['raw_score'] * 0.5) + (skill_score * 0.3) + (experience_score * 0.2)
             
             # 🧠 Unified Human-Intuition Scaling
             scaled_score = self.scale_score(weighted_score)
@@ -526,12 +583,44 @@ class MatchingEngine:
                 effective_threshold = max(threshold, 0.2)  # Relaxed from 0.5 to ensure results for niche roles
                 logger.info(f"   Using threshold {effective_threshold}")
             
-            # DEBUG: Log threshold settings
-            logger.info(f"🔍 DEBUG: limit={limit}, original threshold={threshold}, effective_threshold={effective_threshold}")
-            
-            # Log for debugging
-            logger.info(f"🔍 Matching for job_id={job_id}, title='{job.title}', desc_len={len(description)}, full_desc_len={len(full_description)}")
-            
+            # ── Tier 1: Use cached embedding (zero API calls) ──────────────
+            job_embedding = None
+            use_tfidf    = False
+
+            if job.cached_embedding:
+                job_embedding = list(job.cached_embedding)
+                logger.info(f"✅ CACHED embedding for job {job_id} (0 Gemini calls)")
+            else:
+                # ── Tier 2: Generate via Gemini & persist ─────────────────
+                try:
+                    embedding_service = get_embedding_service()
+                    job_embedding = embedding_service.get_embedding(full_description)
+                    job.cached_embedding = job_embedding
+                    job.save(update_fields=['cached_embedding'])
+                    logger.info(f"✅ Generated & CACHED embedding for job {job_id}")
+                except Exception as emb_err:
+                    err_str = str(emb_err).lower()
+                    if any(k in err_str for k in ["429", "quota", "resource exhausted"]):
+                        logger.warning(f"⚠️  Gemini quota exceeded — TF-IDF fallback for job {job_id}")
+                    else:
+                        logger.error(f"❌ Embedding error: {emb_err}")
+                    use_tfidf = True
+
+            # ── Tier 3: TF-IDF (pure Python, no quota, always works) ────
+            if use_tfidf or job_embedding is None:
+                results = self._tfidf_match_by_job(
+                    job=job,
+                    full_description=full_description,
+                    limit=limit,
+                    threshold=effective_threshold,
+                    recruiter_id=recruiter_id,
+                )
+                for r in results:
+                    r['job_id'] = job.id
+                    r['job_title'] = job.title
+                return results
+
+            # ── Neural path: pgvector cosine similarity ──────────────────
             results = self.match_candidates(
                 job_description=full_description,
                 limit=limit,
@@ -541,18 +630,66 @@ class MatchingEngine:
                 recruiter_id=recruiter_id,
                 mode=mode
             )
-            
-            # Add job information to results
             for result in results:
                 result['job_id'] = job.id
                 result['job_title'] = job.title
-            
             return results
-            
+
         except JobDescription.DoesNotExist:
             logger.error(f"Job with ID {job_id} not found")
             return []
-    
+
+    def _tfidf_match_by_job(
+        self,
+        job,
+        full_description: str,
+        limit: int,
+        threshold: float,
+        recruiter_id: int = None,
+    ) -> List[Dict[str, Any]]:
+        """
+        Pure-Python TF-IDF fallback matcher.
+        Called when Gemini quota is exceeded or embedding fails.
+        Reads resume text directly from the Resume model — no vectors needed.
+        """
+        from apps.candidates.services.tfidf_matcher import tfidf_matcher
+
+        logger.info(f"[TF-IDF] Starting fallback match for job {job.id}")
+
+        # Build candidate data from DB (resume text + skills)
+        qs = Resume.objects.select_related('candidate').prefetch_related('candidate__skills_m2m')
+        if recruiter_id:
+            qs = qs.filter(uploaded_by_id=recruiter_id)
+
+        candidates_data = []
+        seen_ids = set()
+        for resume in qs.order_by('-uploaded_at')[:500]:
+            cand = resume.candidate
+            if not cand or cand.id in seen_ids:
+                continue
+            seen_ids.add(cand.id)
+            candidates_data.append({
+                "candidate_id": cand.id,
+                "resume_text":  resume.text or "",
+                "name":         cand.name or "",
+                "email":        cand.email or "",
+                "skills":       cand.skills or [],
+                "experience_years": cand.experience_years or 0,
+            })
+
+        job_skills = (job.required_skills or []) + (job.get_skills_list() if hasattr(job, 'get_skills_list') else [])
+
+        results = tfidf_matcher.match(
+            job_description=full_description,
+            candidates_data=candidates_data,
+            threshold=threshold,
+            limit=limit,
+            job_skills=job_skills,
+        )
+        logger.info(f"[TF-IDF] Returned {len(results)} matches for job {job.id}")
+        return results
+
+
     def get_match_statistics(self, job_description: str) -> Dict[str, Any]:
         """
         Get matching statistics for a job description.

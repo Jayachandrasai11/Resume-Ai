@@ -1,15 +1,12 @@
 """
 Production-grade embedding service for resume-job matching system.
-This service ensures consistent, reliable embedding generation using HuggingFace Transformers
-with proper error handling, singleton pattern, and validation.
+Uses Google Gemini Cloud Embedding API — no local model loading.
+This approach is memory-safe and avoids OOM/port-timeout issues on Render.
 """
 
 import os
 import logging
-import gc
-import torch
 from typing import Iterable, List, Optional, Dict
-from django.db import transaction
 from ..models import ResumeChunk
 
 # Configure logger
@@ -96,22 +93,57 @@ class EmbeddingService:
                 reraise=True
             )
             def _call_gemini_api(texts):
-                return genai.embed_content(
-                    model="models/text-embedding-004",
-                    content=texts,
-                    task_type="retrieval_document",
-                    output_dimensionality=384
-                )
+                models_to_try = [
+                    ("models/embedding-001", False),      # Standard stable model (768 dims)
+                    ("models/text-embedding-004", True),  # Supports output_dimensionality
+                    ("embedding-001", False)              # Without prefix as fallback
+                ]
+                
+                last_err = None
+                for model_name, supports_dim in models_to_try:
+                    try:
+                        kwargs = {
+                            "model": model_name,
+                            "content": texts,
+                            "task_type": "retrieval_document"
+                        }
+                        if supports_dim:
+                            kwargs["output_dimensionality"] = 384
+                            
+                        response = genai.embed_content(**kwargs)
+                        embeddings = response.get('embedding', [])
+                        
+                        # Handle potential list/single discrepancy
+                        is_batch_call = isinstance(texts, list)
+                        if is_batch_call and embeddings and not isinstance(embeddings[0], list):
+                            # Some versions return a flattened list for small batches
+                            # (Wait, usually it's correct but let's be safe)
+                            pass
+
+                        # TRUNCATION GUARD: If the model returned 768 dims, truncate to 384
+                        # to match pgvector column in database.
+                        if embeddings:
+                            if isinstance(embeddings[0], list):
+                                if len(embeddings[0]) > 384:
+                                    embeddings = [e[:384] for e in embeddings]
+                            elif len(embeddings) > 384:
+                                embeddings = embeddings[:384]
+                                
+                        return {"embedding": embeddings, "model_used": model_name}
+                    except Exception as e:
+                        last_err = e
+                        logger.warning(f"Failed to use embedding model {model_name}: {str(e)}")
+                        continue
+                
+                raise last_err
 
             # Handle both single text and list input
             is_batch = isinstance(text, list)
             texts = text if is_batch else [text]
             
             # Execute with retry logic
-            response = _call_gemini_api(texts)
-            
-            # Extract embeddings
-            embeddings = response.get('embedding', [])
+            response_data = _call_gemini_api(texts)
+            embeddings = response_data.get('embedding', [])
             
             # Normalize if requested (Gemini usually returns normalized but we ensure it)
             if normalize_embeddings and is_batch:

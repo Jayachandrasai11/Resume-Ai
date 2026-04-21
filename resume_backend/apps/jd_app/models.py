@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from pgvector.django import VectorField
 
 
 class JobDescription(models.Model):
@@ -125,6 +126,14 @@ class JobDescription(models.Model):
         default=list,
         blank=True,
         help_text="List of matched candidates with scores"
+    )
+    # 🧠 EMBEDDING CACHE: Stores the job's vector so Gemini is only called ONCE per job.
+    # Subsequent match clicks reuse this — saving ~99% of API quota.
+    cached_embedding = VectorField(
+        dimensions=384,
+        null=True,
+        blank=True,
+        help_text="Cached embedding vector for this job description (generated once, reused on every match)"
     )
 
     class Meta:

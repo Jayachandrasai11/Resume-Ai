@@ -1,4 +1,5 @@
-accelerate==1.12.0
+# accelerate removed — no longer using local torch models (OOM risk on Render)
+# Use Gemini Cloud API instead for embeddings
 altair==6.0.0
 annotated-types==0.7.0
 anyio==4.11.0
@@ -58,7 +59,8 @@ h11==0.16.0
 httpcore==1.0.9
 httplib2==0.31.0
 httpx==0.28.1
-huggingface-hub==0.36.0
+# huggingface-hub removed — no longer loading local HuggingFace models
+# huggingface-hub==0.36.0
 idna==3.11
 imaplib2==3.6
 Jinja2==3.1.6
@@ -121,10 +123,12 @@ requests==2.32.5
 resume-parser==0.8.4
 rpds-py==0.28.0
 rsa==4.9.1
-safetensors==0.6.2
+# safetensors removed — only needed for local torch model loading
+# safetensors==0.6.2
 scikit-learn==1.4.2
 scipy==1.11.4
-sentence-transformers==5.2.0
+# sentence-transformers removed — replaced by Gemini Cloud API
+# sentence-transformers==5.2.0
 setuptools==80.9.0
 shapely==2.1.2
 six==1.17.0
@@ -145,10 +149,12 @@ threadpoolctl==3.6.0
 tika==3.1.0
 tokenizers==0.22.1
 toml==0.10.2
-torch==2.9.1
+# torch removed — no local AI model loading; using Gemini Cloud API (prevents 2GB install + OOM)
+# torch==2.9.1
 tornado==6.5.4
 tqdm==4.67.1
-transformers==4.57.1
+# transformers removed — no longer using HuggingFace transformers pipeline
+# transformers==4.57.1
 typer-slim==0.20.0
 typing-inspection==0.4.2
 typing_extensions==4.15.0
