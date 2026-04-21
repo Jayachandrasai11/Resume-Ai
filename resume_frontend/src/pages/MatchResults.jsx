@@ -87,6 +87,19 @@ const MatchResults = () => {
   };
 
   useEffect(() => {
+    // 🛡️ SELF-HEALING: If we arrived here but the store is empty, fetch the job
+    const recoverJob = async () => {
+      if (!selectedJob) {
+        try {
+          const response = await http.get(`/jobs/${jobId}/`);
+          store.setSelectedJob(response.data);
+        } catch (err) {
+          console.error("Job recovery failed:", err);
+        }
+      }
+    };
+    recoverJob();
+
     // 1️⃣ Best case: sessionStorage has persisted results from JobDetails page
     const recoveryData = sessionStorage.getItem(`match_results_${jobId}`);
     const recoveryMode = sessionStorage.getItem(`match_mode_${jobId}`);
@@ -112,10 +125,22 @@ const MatchResults = () => {
       return;
     }
 
-    // 3️⃣ Recovery case: no data at all — fetch directly instead of redirecting
-    // This handles the case where Render killed the worker and the page loaded with no state
-    runMatch(recoveryMode || 'smart');
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // 3️⃣ Recovery case: no data at all — check status first
+    const checkThenRun = async () => {
+      try {
+        const statusRes = await http.get(`/jobs/${jobId}/match-status/`);
+        if (statusRes.data.status === 'processing') {
+          pollMatchStatus(recoveryMode || 'smart');
+        } else {
+          runMatch(recoveryMode || 'smart');
+        }
+      } catch (e) {
+        runMatch(recoveryMode || 'smart');
+      }
+    };
+    
+    checkThenRun();
+  }, [jobId]); // Only depend on jobId to prevent loops
 
   const hasResults = isSearchMode && searchResults && searchResults.length > 0;
 
