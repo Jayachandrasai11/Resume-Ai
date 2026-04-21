@@ -15,7 +15,7 @@ from pgvector.django import CosineDistance
 from apps.candidates.models import Candidate, Resume, ResumeChunk
 from apps.candidates.services.embeddings import get_embedding_service
 from apps.jd_app.models import JobDescription
-from ..status_service import matching_tracker
+from .status_service import matching_tracker
 
 logger = logging.getLogger(__name__)
 
