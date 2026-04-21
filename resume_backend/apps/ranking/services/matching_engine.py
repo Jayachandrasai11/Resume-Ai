@@ -342,16 +342,16 @@ class MatchingEngine:
             logger.debug(f"[MATCH DEBUG] Candidate {candidate_data['id']} ({candidate_data['name']}): similarity={scaled_similarity:.4f}, match_percentage={round(scaled_similarity * 100)}%")
 
             if include_details:
-                result |= {
+                result.update({
                     'phone': candidate_data.get('phone'),
                     'summary': candidate_data.get('summary'),
                     'skills': candidate_data.get('skills'),
                     'experience': candidate_data.get('experience'),
-                    'experience_years': candidate_data.get('experience_years'),  # Added: numeric years
+                    'experience_years': candidate_data.get('experience_years'),
                     'education': candidate_data.get('education'),
                     'projects': candidate_data.get('projects'),
-                    'resumes_count': 1,  # Simplified since we don't have the relationship here
-                }
+                    'resumes_count': 1,
+                })
 
             results.append(result)
 
