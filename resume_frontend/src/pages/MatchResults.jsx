@@ -28,7 +28,7 @@ const MatchResults = () => {
       
       if (currentStatus === 'completed') {
         // Final fetch of results
-        const finalResults = await http.get(`/jobs/${jobId}/match/?limit=500&threshold=0.0&strategy=cosine&type=${mode}`);
+        const finalResults = await http.get(`/jobs/${jobId}/match/?limit=500&threshold=-1.0&strategy=cosine&type=${mode}`);
         const results = Array.isArray(finalResults.data) ? finalResults.data : (finalResults.data?.results || []);
         
         sessionStorage.setItem(`match_results_${jobId}`, JSON.stringify(results));
@@ -68,7 +68,7 @@ const MatchResults = () => {
     try {
       const modeKey = mode || searchType || 'smart';
       const response = await http.get(
-        `/jobs/${jobId}/match/?limit=500&threshold=0.0&strategy=cosine&type=${modeKey}`
+        `/jobs/${jobId}/match/?limit=500&threshold=-1.0&strategy=cosine&type=${modeKey}`
       );
       
       if (response.status === 202) {

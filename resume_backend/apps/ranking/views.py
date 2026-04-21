@@ -300,7 +300,7 @@ class MatchByJobIdView(APIView):
         #     )
 
         limit = min(int(request.GET.get('limit', 500)), 1000)  # Relaxed cap to allow seeing all candidates
-        threshold = float(request.GET.get('threshold', 0.0))  # Default to 0.0 to see all
+        threshold = float(request.GET.get('threshold', -1.0))  # Default to -1.0 to see all
         strategy = request.GET.get('strategy', 'cosine')
         # Read mode/type parameter and map to internal mode
         # Frontend sends 'mode', some callers may use 'type' - accept both
