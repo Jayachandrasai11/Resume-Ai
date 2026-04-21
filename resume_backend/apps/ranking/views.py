@@ -313,11 +313,11 @@ class MatchByJobIdView(APIView):
         start_time = time.time()
 
         try:
-            # Quick return for production - limit candidates to prevent timeout
+            # FIX: Use calculated limit and threshold from request instead of hardcoded production overrides
             results = matching_engine.match_by_job_id(
                 job_id=job_id,
-                limit=10,
-                threshold=0.6,
+                limit=limit,
+                threshold=threshold,
                 strategy=strategy,
                 recruiter_id=recruiter_id,
                 mode=mode
@@ -341,6 +341,7 @@ class MatchByJobIdView(APIView):
                     match_results.append({
                         "candidate_id": cid,
                         "name": candidate.name,
+                        "email": candidate.email,  # Included missing email
                         "skills": candidate.skills or [],
                         "experience_years": candidate.experience_years,
                         "match_score": round(score * 100)
