@@ -15,7 +15,7 @@ from pgvector.django import CosineDistance
 from apps.candidates.models import Candidate, Resume, ResumeChunk
 from apps.candidates.services.embeddings import get_embedding_service
 from apps.jd_app.models import JobDescription
-
+from ..status_service import matching_tracker
 
 logger = logging.getLogger(__name__)
 
@@ -593,10 +593,12 @@ class MatchingEngine:
             else:
                 # ── Tier 2: Generate via Gemini & persist ─────────────────
                 try:
+                    matching_tracker.set_status(job_id, 'processing', 'AI is generating job vectors...')
                     embedding_service = get_embedding_service()
                     job_embedding = embedding_service.get_embedding(full_description)
                     job.cached_embedding = job_embedding
                     job.save(update_fields=['cached_embedding'])
+                    matching_tracker.set_status(job_id, 'processing', 'Job analysis complete. Searching database...')
                     logger.info(f"✅ Generated & CACHED embedding for job {job_id}")
                 except Exception as emb_err:
                     logger.warning(f"⚠️  Neural engine unavailable ({str(emb_err)}) — Engaging TF-IDF fallback for job {job_id}")
@@ -617,6 +619,7 @@ class MatchingEngine:
                 return results
 
             # ── Neural path: pgvector cosine similarity ──────────────────
+            matching_tracker.set_status(job_id, 'processing', 'Ranking candidates by relevance...')
             results = self.match_candidates(
                 job_description=full_description,
                 limit=limit,
@@ -626,6 +629,7 @@ class MatchingEngine:
                 recruiter_id=recruiter_id,
                 mode=mode
             )
+            matching_tracker.set_status(job_id, 'completed', 'Analysis finalized.')
             for result in results:
                 result['job_id'] = job.id
                 result['job_title'] = job.title

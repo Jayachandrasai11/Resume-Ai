@@ -4,6 +4,8 @@ Views for the candidate-job matching and ranking API.
 
 import time
 import logging
+import threading
+from .services.status_service import matching_tracker
 from django.http import JsonResponse
 from django.shortcuts import get_object_or_404
 from rest_framework import status
@@ -152,6 +154,19 @@ class SemanticSearchView(APIView):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+
+class MatchStatusView(APIView):
+    """
+    Polling endpoint to check the status of a matching task.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request, job_id):
+        status_data = matching_tracker.get_status(job_id)
+        if not status_data:
+            return Response({"status": "idle", "message": "No active task found"})
+        
+        return Response(status_data)
 
 class MatchCandidatesView(APIView):
     """
@@ -312,8 +327,49 @@ class MatchByJobIdView(APIView):
 
         start_time = time.time()
 
+        # 🆕 STATUS CHECK: If already processing, return 202
+        current_status = matching_tracker.get_status(job_id)
+        if current_status and current_status["status"] == "processing":
+            return Response({
+                "status": "processing",
+                "message": current_status["step"],
+                "job_id": job_id
+            }, status=status.HTTP_202_ACCEPTED)
+
+        # 🆕 ASYNC SIGNALING: If job has NO cached embedding, start thread and return 202
+        if not job.cached_embedding:
+            # Check if we should use fallback mode (e.g. if we know AI is down)
+            # For now, we always try to start the neural match
+            matching_tracker.set_status(job_id, 'processing', 'Initiating AI analysis sequence...')
+            
+            # Start matching in background thread
+            def run_async_match():
+                try:
+                    matching_engine.match_by_job_id(
+                        job_id=job_id,
+                        limit=limit,
+                        threshold=threshold,
+                        strategy=strategy,
+                        recruiter_id=recruiter_id,
+                        mode=mode
+                    )
+                except Exception as e:
+                    matching_tracker.set_status(job_id, 'failed', f"Error: {str(e)}")
+                    logger.error(f"Async match failed for job {job_id}: {e}")
+
+            thread = threading.Thread(target=run_async_match)
+            thread.daemon = True
+            thread.start()
+
+            return Response({
+                "status": "processing",
+                "message": "AI analysis started in background",
+                "job_id": job_id
+            }, status=status.HTTP_202_ACCEPTED)
+
         try:
-            # FIX: Use calculated limit and threshold from request instead of hardcoded production overrides
+            # If we have cached embedding, this will be very fast
+            matching_tracker.set_status(job_id, 'processing', 'Aggregating cached matches...')
             results = matching_engine.match_by_job_id(
                 job_id=job_id,
                 limit=limit,
@@ -322,6 +378,7 @@ class MatchByJobIdView(APIView):
                 recruiter_id=recruiter_id,
                 mode=mode
             )
+            matching_tracker.clear_status(job_id)
 
             # 🚀 HIGH-SPEED RESPONSE BUILDING
             match_results = []

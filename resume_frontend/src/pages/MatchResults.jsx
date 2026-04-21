@@ -15,6 +15,39 @@ const MatchResults = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [fetchError, setFetchError] = useState(null);
   const [isRetrying, setIsRetrying] = useState(false);
+  const [matchStatus, setMatchStatus] = useState({ status: 'idle', message: 'Starting...' });
+
+  // ── Polling handler ───────────────────────────────────────────────────────
+  const pollMatchStatus = async (mode) => {
+    try {
+      const response = await http.get(`/jobs/${jobId}/match-status/`);
+      const { status: currentStatus, message, step } = response.data;
+      
+      setMatchStatus({ status: currentStatus, message: step || message });
+      
+      if (currentStatus === 'completed') {
+        // Final fetch of results
+        const finalResults = await http.get(`/jobs/${jobId}/match/?type=${mode}`);
+        const results = Array.isArray(finalResults.data) ? finalResults.data : (finalResults.data?.results || []);
+        
+        sessionStorage.setItem(`match_results_${jobId}`, JSON.stringify(results));
+        store.setSearchResults(results);
+        store.setIsSearchMode(true);
+        setIsLoading(false);
+        setHasInitialized(true);
+      } else if (currentStatus === 'failed') {
+        setFetchError(message || 'AI processing failed.');
+        setIsLoading(false);
+      } else {
+        // Keep polling
+        setTimeout(() => pollMatchStatus(mode), 2000);
+      }
+    } catch (err) {
+      console.error('Polling error:', err);
+      // Don't die on one network error, retry polling
+      setTimeout(() => pollMatchStatus(mode), 3000);
+    }
+  };
 
   // ── Retry handler ────────────────────────────────────────────────────────
   const runMatch = async (mode) => {
@@ -24,22 +57,30 @@ const MatchResults = () => {
     try {
       const modeKey = mode || searchType || 'smart';
       const response = await http.get(
-        `/jobs/${jobId}/match/?limit=20&threshold=0.1&strategy=cosine&type=${modeKey}`,
-        { timeout: 120000 }  // 2 minutes — covers Render cold start
+        `/jobs/${jobId}/match/?limit=20&threshold=0.1&strategy=cosine&type=${modeKey}`
       );
+      
+      if (response.status === 202) {
+        setMatchStatus({ status: 'processing', message: 'Analyzing job requirements...' });
+        pollMatchStatus(modeKey);
+        return;
+      }
+
       const results = Array.isArray(response.data)
         ? response.data
         : (response.data?.results || []);
+      
       sessionStorage.setItem(`match_results_${jobId}`, JSON.stringify(results));
       sessionStorage.setItem(`match_mode_${jobId}`, modeKey);
       store.setSearchResults(results);
       store.setIsSearchMode(true);
       store.setSearchType(modeKey);
+      setIsLoading(false);
     } catch (err) {
       console.error('Match fetch failed:', err);
       setFetchError(err.message || 'Server timeout — please retry.');
-    } finally {
       setIsLoading(false);
+    } finally {
       setHasInitialized(true);
       setIsRetrying(false);
     }
@@ -131,9 +172,39 @@ const MatchResults = () => {
 
   if (!hasInitialized || isLoading) {
     return (
-      <div className="flex flex-col justify-center items-center h-[600px]">
-        <div className="w-16 h-16 border-4 border-indigo-500/20 border-t-indigo-500 rounded-full animate-spin"></div>
-        <p className="mt-6 text-slate-500 font-black tracking-[0.4em] uppercase text-[10px] animate-pulse">Aggregating Results...</p>
+      <div className="flex flex-col justify-center items-center h-[600px] max-w-xl mx-auto">
+        <div className="w-24 h-24 relative mb-10">
+          <div className="absolute inset-0 border-4 border-indigo-500/10 rounded-full"></div>
+          <div className="absolute inset-0 border-4 border-t-indigo-500 rounded-full animate-spin"></div>
+          <div className="absolute inset-4 bg-slate-900/50 rounded-full flex items-center justify-center">
+             <div className="w-1 h-1 bg-indigo-500 rounded-full animate-ping"></div>
+          </div>
+        </div>
+
+        <div className="text-center space-y-4 w-full px-8">
+          <div className="flex items-center justify-center gap-2 text-indigo-400 font-black text-[10px] tracking-[0.4em] uppercase mb-2">
+            <span className="w-4 h-[1px] bg-indigo-500/50"></span>
+            Analysis in Progress
+            <span className="w-4 h-[1px] bg-indigo-500/50"></span>
+          </div>
+          
+          <h2 className="text-2xl font-black text-white tracking-tighter uppercase whitespace-pre-wrap">
+            {matchStatus.message || "Synthesizing Profiles..."}
+          </h2>
+
+          {/* Progress Micro-bar */}
+          <div className="w-full h-1 bg-white/5 rounded-full overflow-hidden mt-6">
+            <motion.div 
+              initial={{ width: "10%" }}
+              animate={{ width: matchStatus.status === 'processing' ? "70%" : "95%" }}
+              className="h-full bg-gradient-to-r from-indigo-600 to-violet-600"
+            />
+          </div>
+
+          <p className="text-slate-500 text-[10px] font-bold uppercase tracking-widest mt-8 animate-pulse">
+            Neural matches are computed via cloud GPU... please hold.
+          </p>
+        </div>
       </div>
     );
   }

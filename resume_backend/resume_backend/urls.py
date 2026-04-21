@@ -24,6 +24,7 @@ from apps.ranking.views import (
     search_view,
     MatchCandidatesView,
     MatchByJobIdView,
+    MatchStatusView,
     JobMatchesView,
     MatchStatisticsView,
     BatchMatchView,
@@ -92,6 +93,7 @@ urlpatterns = [
     path("api/ranking/compare-candidates/", CompareCandidatesView.as_view(), name="compare-candidates"),
     path("api/ranking/strategies/", GetStrategiesView.as_view(), name="ranking-strategies"),
     
+    path("api/jobs/<int:job_id>/match-status/", MatchStatusView.as_view(), name="job-match-status"),
     path("api/jobs/<int:job_id>/match/", MatchByJobIdView.as_view(), name="job-match"),
     path("api/jobs/<int:job_id>/matches/", JobMatchesView.as_view(), name="job-matches"),
     path("api/jobs/<int:job_id>/funnel/add/", AddToFunnelView.as_view(), name="add-to-funnel"),
