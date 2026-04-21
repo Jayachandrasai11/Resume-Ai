@@ -1,6 +1,7 @@
 from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from . import views
+from dashboard.views import HiringTrendsNewAPIView, MatchDistributionAPIView
 
 # Create a router for ViewSets
 router = DefaultRouter()
@@ -37,8 +38,8 @@ urlpatterns = [
     
     # Analytics endpoints
     path("api/analytics/", views.AnalyticsAPIView.as_view(), name="analytics-api"),
-    path("api/analytics/hiring-trends/", views.HiringTrendsNewAPIView.as_view(), name="analytics-hiring-trends"),
-    path("api/analytics/match-distribution/", views.MatchDistributionAPIView.as_view(), name="analytics-match-dist"),
+    path("api/analytics/hiring-trends/", HiringTrendsNewAPIView.as_view(), name="analytics-hiring-trends"),
+    path("api/analytics/match-distribution/", MatchDistributionAPIView.as_view(), name="analytics-match-dist"),
     
     # Recruiter Analytics endpoints
     path("api/recruiter/analytics/overview/", views.RecruiterOverviewAPIView.as_view(), name="recruiter-analytics-overview"),

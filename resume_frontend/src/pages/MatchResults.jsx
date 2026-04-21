@@ -80,8 +80,8 @@ const MatchResults = () => {
 
   const modeDisplay = {
     'smart': 'Smart Match',
-    'deep': 'AI Deep Search',
-    'exact': 'Exact Filter'
+    'semantic': 'AI Deep Search',
+    'keyword': 'Exact Filter'
   };
 
   const handleSelectCandidate = (candidateId) => {

@@ -21,7 +21,6 @@ from ..models import Candidate, Resume, ResumeChunk
 from ..serializers import CandidateSerializer, ResumeChunkSerializer, ResumeSerializer
 from apps.pipeline.models import CandidatePipeline
 from apps.jd_app.models import JobDescription, JobSession
-from dashboard.views import HiringTrendsNewAPIView, MatchDistributionAPIView
 from ..services.chunking import chunk_and_store_resume
 from ..services.duplicate_checker import find_existing_candidate
 from ..services.email_ingestion import process_email_resume
