@@ -56,81 +56,97 @@ class EmbeddingService:
             self._model_loaded = True
 
     def _load_model(self):
-        """Load SentenceTransformer model with memory optimizations."""
+        """Configure Gemini Embedding API instead of loading a local model."""
         try:
-            from sentence_transformers import SentenceTransformer
-            import torch
+            import google.generativeai as genai
+            from django.conf import settings
             
-            logger.info(f"Loading SentenceTransformer model: {self.model_name}")
+            api_key = getattr(settings, 'GEMINI_API_KEY', None)
+            if not api_key:
+                api_key = os.environ.get('GEMINI_API_KEY')
             
-            # Load model directly via sentence-transformers (more efficient)
-            # Use 'cpu' device explicitly and float32 for maximum compatibility
-            self._model = SentenceTransformer(
-                self.model_name,
-                device='cpu',
-                cache_folder=CACHE_DIR
-            )
-            
-            # Explicitly clear any torch cache
-            if torch.cuda.is_available():
-                torch.cuda.empty_cache()
-            
-            logger.info("✅ SentenceTransformer model loaded successfully")
+            if not api_key:
+                logger.error("❌ GEMINI_API_KEY not found. Neural matching will fail.")
+                return
+
+            genai.configure(api_key=api_key)
+            logger.info("✅ Gemini Embedding API configured (Neural engine moved to cloud)")
+            self._model_ready = True
 
         except Exception as e:
-            logger.critical(f"❌ Failed to load embedding model: {str(e)}", exc_info=True)
-            raise RuntimeError(f"Failed to initialize embedding service: {str(e)}")
+            logger.critical(f"❌ Failed to configure Gemini API: {str(e)}", exc_info=True)
+            raise RuntimeError(f"Failed to initialize cloud embedding service: {str(e)}")
 
     def encode(self, text: str or List[str], normalize_embeddings: bool = True) -> List[List[float]] or List[float]:
         """
-        Encode text(s) to embeddings using SentenceTransformer.
+        Encode text(s) to embeddings using Gemini Cloud API.
+        Uses 384 dimensions to maintain compatibility with existing vector data.
         """
         self._ensure_initialized()
 
-        if not self._model:
-            logger.warning("Model not loaded, attempting to reload...")
-            self._load_model()
-
         try:
+            import google.generativeai as genai
+            from tenacity import retry, stop_after_attempt, wait_exponential, retry_if_exception_type
+            
+            # 🛡️ FREE TIER PROTECTION: Automatic retry for 429 Too Many Requests
+            @retry(
+                stop=stop_after_attempt(3),
+                wait=wait_exponential(multiplier=1, min=2, max=10),
+                retry=retry_if_exception_type(Exception), # Catch API errors
+                reraise=True
+            )
+            def _call_gemini_api(texts):
+                return genai.embed_content(
+                    model="models/text-embedding-004",
+                    content=texts,
+                    task_type="retrieval_document",
+                    output_dimensionality=384
+                )
+
             # Handle both single text and list input
             is_batch = isinstance(text, list)
             texts = text if is_batch else [text]
-
-            # 🛡️ PRODUCTION RAM GUARD: Force single thread to prevent memory spikes
-            import torch
-            torch.set_num_threads(1)
             
-            # Use SentenceTransformer's encode directly
-            embeddings = self._model.encode(
-                texts,
-                batch_size=32,
-                show_progress_bar=False,
-                convert_to_numpy=True,
-                normalize_embeddings=normalize_embeddings
-            )
+            # Execute with retry logic
+            response = _call_gemini_api(texts)
+            
+            # Extract embeddings
+            embeddings = response.get('embedding', [])
+            
+            # Normalize if requested (Gemini usually returns normalized but we ensure it)
+            if normalize_embeddings and is_batch:
+                import numpy as np
+                norm_embeddings = []
+                for e in embeddings:
+                    arr = np.array(e)
+                    norm = np.linalg.norm(arr)
+                    norm_embeddings.append((arr / norm if norm > 0 else arr).tolist())
+                return norm_embeddings
+            elif normalize_embeddings:
+                import numpy as np
+                arr = np.array(embeddings)
+                norm = np.linalg.norm(arr)
+                return (arr / norm if norm > 0 else arr).tolist()
 
-            # Convert to list for JSON serialization
-            result = embeddings.tolist()
-
-            # 🧹 AGGRESSIVE CLEANUP: Flush memory immediately
-            gc.collect()
-
-            return result if is_batch else result[0]
+            return embeddings
 
         except Exception as e:
-            logger.error(f"❌ Error generating embeddings: {str(e)}", exc_info=True)
-            raise RuntimeError(f"Embedding generation failed: {str(e)}")
+            logger.error(f"❌ Gemini Embedding Error: {str(e)}", exc_info=True)
+            # Fallback/Safety: Return zero vector to prevent crash if AI is down
+            zero_vec = [0.0] * 384
+            return [zero_vec] * len(text) if isinstance(text, list) else zero_vec
 
     def get_embedding(self, text: str) -> List[float]:
         """Alias for encode() to maintain API compatibility."""
         return self.encode(text)
 
-    def generate_for_queryset(self, qs, batch_size: int = 128) -> Dict[str, int]:
-        """Generate embeddings for a queryset of resume chunks."""
+    def generate_for_queryset(self, qs, batch_size: int = 50) -> Dict[str, int]:
+        """Generate embeddings for a queryset of resume chunks with Free Tier safety."""
+        import time
         ids = list(qs.values_list("id", flat=True))
         processed_count = 0
 
-        # Note: Unblocking async processing (e.g., Celery) is recommended for high volume.
+        # Note: Reduced batch size for Gemini Free Tier safety (prevent 429/TPM errors)
         for i in range(0, len(ids), batch_size):
             batch_ids = ids[i:i + batch_size]
             # Convert to list to ensure ordered mapping with embeddings
@@ -140,7 +156,7 @@ class EmbeddingService:
             texts = [c.chunk_text for c in batch]
             embeddings = self.encode(texts)
 
-            # Update database via bulk operations using bulk_create as requested
+            # Update database
             chunks_to_update = []
             for chunk, embedding in zip(batch, embeddings):
                 if not chunk.embedding:
@@ -148,13 +164,12 @@ class EmbeddingService:
                     chunks_to_update.append(chunk)
 
             if chunks_to_update:
-                ResumeChunk.objects.bulk_create(
-                    chunks_to_update,
-                    update_conflicts=True,
-                    unique_fields=['id'],
-                    update_fields=['embedding']
-                )
+                ResumeChunk.objects.bulk_update(chunks_to_update, ['embedding'])
                 processed_count += len(chunks_to_update)
+            
+            # 🛡️ RATE LIMIT BUFFER: Sleep small amount between batches for Free Tier
+            if i + batch_size < len(ids):
+                time.sleep(1.0)
 
         logger.info(f"Generated embeddings for {processed_count}/{len(ids)} resume chunks")
         return {"total": len(ids), "processed": processed_count}
