@@ -61,8 +61,16 @@ def process_email_resume(email_host: str, email_user: str, email_pass: str, fold
         # Search for unread emails
         status, messages = mail.search(None, 'UNSEEN')
         email_ids = messages[0].split()
+        
+        # 🛡️ BATCH LIMIT: Only process 5 at a time to prevent Render OOM
+        MAX_PER_SCAN = 5
+        process_count = 0
 
         for email_id in email_ids:
+            if process_count >= MAX_PER_SCAN:
+                logger.warning(f"Reached batch limit of {MAX_PER_SCAN}. More unread resumes remain.")
+                break
+
             status, msg_data = mail.fetch(email_id, '(RFC822)')
             email_body = msg_data[0][1]
 
@@ -155,6 +163,11 @@ def process_email_resume(email_host: str, email_user: str, email_pass: str, fold
                         'Skills': parsed_data.get('Skills') or parsed_data.get('skills'),
                     }
                 })
+                
+                # 🧹 MEMORY FLUSH: After each resume, force cleanup
+                import gc
+                gc.collect()
+                process_count += 1
 
             # Mark as read
             mail.store(email_id, '+FLAGS', '\\Seen')
