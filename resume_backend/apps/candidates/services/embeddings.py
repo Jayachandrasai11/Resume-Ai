@@ -56,36 +56,26 @@ class EmbeddingService:
             self._model_loaded = True
 
     def _load_model(self):
-        """Load tokenizer and model - production-grade implementation."""
+        """Load SentenceTransformer model with memory optimizations."""
         try:
+            from sentence_transformers import SentenceTransformer
             import torch
-            from transformers import AutoTokenizer, AutoModel
             
-            logger.info(f"Loading embedding model: {self.model_name}")
+            logger.info(f"Loading SentenceTransformer model: {self.model_name}")
             
-            # Load tokenizer
-            self._tokenizer = AutoTokenizer.from_pretrained(
+            # Load model directly via sentence-transformers (more efficient)
+            # Use 'cpu' device explicitly and float32 for maximum compatibility
+            self._model = SentenceTransformer(
                 self.model_name,
-                cache_dir=CACHE_DIR,
-                clean_up_tokenization_spaces=True
+                device='cpu',
+                cache_folder=CACHE_DIR
             )
-
-            # Load model - explicit CPU configuration
-            # IMPORTANT: Do NOT use device_map='cpu' - it causes meta tensor issues
-            # Use low_cpu_mem_usage=True to optimize memory usage on CPU
-            self._model = AutoModel.from_pretrained(
-                self.model_name,
-                cache_dir=CACHE_DIR,
-                low_cpu_mem_usage=True,
-                dtype=torch.float32,
-                device_map=None  # Explicitly disable device_map
-            )
-
-            # Explicitly move model to CPU (resolve meta tensor issues)
-            self._model = self._model.to(torch.device("cpu"))
-            self._model.eval()
-
-            logger.info("✅ Embedding model loaded successfully")
+            
+            # Explicitly clear any torch cache
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            
+            logger.info("✅ SentenceTransformer model loaded successfully")
 
         except Exception as e:
             logger.critical(f"❌ Failed to load embedding model: {str(e)}", exc_info=True)
@@ -93,60 +83,39 @@ class EmbeddingService:
 
     def encode(self, text: str or List[str], normalize_embeddings: bool = True) -> List[List[float]] or List[float]:
         """
-        Encode text(s) to embeddings.
-        Handles single text and batch encoding.
+        Encode text(s) to embeddings using SentenceTransformer.
         """
         self._ensure_initialized()
 
-        if not self._model or not self._tokenizer:
-            logger.warning("Model or tokenizer not loaded, attempting to reload...")
+        if not self._model:
+            logger.warning("Model not loaded, attempting to reload...")
             self._load_model()
 
-        # Handle both single text and list input
-        is_batch = isinstance(text, list)
-        texts = text if is_batch else [text]
-
         try:
-            # 🛡️ PRODUCTION RAM GUARD: Force single thread to prevent memory fragmentation
+            # Handle both single text and list input
+            is_batch = isinstance(text, list)
+            texts = text if is_batch else [text]
+
+            # 🛡️ PRODUCTION RAM GUARD: Force single thread to prevent memory spikes
+            import torch
             torch.set_num_threads(1)
             
-            # Tokenize inputs
-            encoded_input = self._tokenizer(
+            # Use SentenceTransformer's encode directly
+            embeddings = self._model.encode(
                 texts,
-                padding=True,
-                truncation=True,
-                max_length=128,
-                return_tensors='pt'
+                batch_size=32,
+                show_progress_bar=False,
+                convert_to_numpy=True,
+                normalize_embeddings=normalize_embeddings
             )
 
-            # Move tensors to CPU (explicitly ensure compatibility)
-            encoded_input = {k: v.to(torch.device("cpu")) for k, v in encoded_input.items()}
+            # Convert to list for JSON serialization
+            result = embeddings.tolist()
 
-            # Generate embeddings with no gradient (faster and saves memory)
-            with torch.no_grad():
-                model_output = self._model(**encoded_input)
-
-            # Mean pooling to get sentence embeddings
-            token_embeddings = model_output[0]
-            input_mask_expanded = encoded_input['attention_mask'].unsqueeze(-1).expand(token_embeddings.size()).float()
-            sentence_embeddings = torch.sum(token_embeddings * input_mask_expanded, 1) / torch.clamp(input_mask_expanded.sum(1), min=1e-9)
-
-            # Normalize if requested
-            if normalize_embeddings:
-                sentence_embeddings = torch.nn.functional.normalize(sentence_embeddings, p=2, dim=1)
-
-            # Convert to list
-            embeddings = sentence_embeddings.tolist()
-
-            # 🧹 AGGRESSIVE CLEANUP: Flush memory immediately after compute
-            del encoded_input
-            del model_output
-            del token_embeddings
+            # 🧹 AGGRESSIVE CLEANUP: Flush memory immediately
             gc.collect()
 
-            logger.debug(f"Encoded {len(texts)} text(s) to embeddings of shape {len(embeddings[0])}")
-
-            return embeddings if is_batch else embeddings[0]
+            return result if is_batch else result[0]
 
         except Exception as e:
             logger.error(f"❌ Error generating embeddings: {str(e)}", exc_info=True)

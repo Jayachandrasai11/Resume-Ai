@@ -419,9 +419,8 @@ class MatchingEngine:
         # Get baseline semantic matches (with skill filtering)
         semantic_results = self._cosine_similarity_match(job_embedding, limit * 2, threshold * 0.7, False, recruiter_id, job_skills=job_skills)
         
-        # Pre-fetch all relevant candidates in one query to avoid N+1 slow queries
-        candidate_ids = [result['candidate_id'] for result in semantic_results]
-        candidates_map = {c.id: c for c in Candidate.objects.filter(id__in=candidate_ids)}
+        # Pre-fetch all relevant candidates in one query with prefetch_related to avoid N+1 slow queries
+        candidates_map = {c.id: c for c in Candidate.objects.filter(id__in=candidate_ids).prefetch_related('skills_m2m')}
         
         weighted_results = []
         for result in semantic_results:
