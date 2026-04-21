@@ -580,7 +580,7 @@ class MatchingEngine:
                 effective_threshold = 0.0  # Show all candidates regardless of match score
                 logger.info(f"   Showing ALL candidates - threshold set to 0.0")
             else:
-                effective_threshold = max(threshold, 0.2)  # Relaxed from 0.5 to ensure results for niche roles
+                effective_threshold = threshold  # Allow whatever threshold is requested
                 logger.info(f"   Using threshold {effective_threshold}")
             
             # ── Tier 1: Use cached embedding (zero API calls) ──────────────

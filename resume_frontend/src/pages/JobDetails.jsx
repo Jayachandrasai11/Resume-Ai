@@ -50,7 +50,7 @@ const JobDetails = () => {
     try {
       const typeMap = { 'smart': 'smart', 'semantic': 'deep', 'keyword': 'exact' };
       const backendType = typeMap[selectedMode] || 'smart';
-      const response = await http.get(`/jobs/${jobId}/match/?limit=20&threshold=0.1&strategy=cosine&type=${backendType}`);
+      const response = await http.get(`/jobs/${jobId}/match/?limit=500&threshold=0.0&strategy=cosine&type=${backendType}`);
       
       // 💾 PERSISTENCE LAYER: Only store the metadata, let the Results page poll for data
       sessionStorage.removeItem(`match_results_${jobId}`); // Clear old results
