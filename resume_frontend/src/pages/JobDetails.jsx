@@ -60,8 +60,10 @@ const JobDetails = () => {
       setIsSearchMode(true);
       setSearchType(selectedMode);
 
-      // 🏎️ Immediate Navigation to the Polling UI
-      navigate(`/jobs/${jobId}/results`);
+      // 🏎️ Strategic Delay: Ensure Zustand store has flushed state before router transition
+      setTimeout(() => {
+        navigate(`/jobs/${jobId}/results`, { replace: true });
+      }, 100);
     } catch (err) {
       alert('Neural link interrupted. Please retry.');
     } finally {
