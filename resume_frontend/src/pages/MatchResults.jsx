@@ -16,6 +16,7 @@ const MatchResults = () => {
   const [fetchError, setFetchError] = useState(null);
   const [isRetrying, setIsRetrying] = useState(false);
   const [matchStatus, setMatchStatus] = useState({ status: 'idle', message: 'Starting...' });
+  const [idleCount, setIdleCount] = useState(0);
 
   // ── Polling handler ───────────────────────────────────────────────────────
   const pollMatchStatus = async (mode) => {
@@ -38,13 +39,23 @@ const MatchResults = () => {
       } else if (currentStatus === 'failed') {
         setFetchError(message || 'AI processing failed.');
         setIsLoading(false);
+      } else if (currentStatus === 'idle') {
+        // 🔄 AUTO-REBOOT: If server is idle, it might have rebooted. Try to re-trigger.
+        if (idleCount > 1) {
+             console.log("Server state lost. Re-triggering match engine...");
+             runMatch(mode);
+             setIdleCount(0);
+        } else {
+             setIdleCount(prev => prev + 1);
+             setTimeout(() => pollMatchStatus(mode), 2000);
+        }
       } else {
-        // Keep polling
+        // Keep polling (processing)
+        setIdleCount(0);
         setTimeout(() => pollMatchStatus(mode), 2000);
       }
     } catch (err) {
       console.error('Polling error:', err);
-      // Don't die on one network error, retry polling
       setTimeout(() => pollMatchStatus(mode), 3000);
     }
   };
