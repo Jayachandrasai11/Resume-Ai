@@ -115,12 +115,12 @@ class MatchingEngine:
             try:
                 job_embedding = embedding_service.get_embedding(job_description)
             except Exception as e:
-                err_str = str(e).lower()
-                if any(k in err_str for k in ["429", "quota", "resource exhausted", "404"]):
-                    logger.warning(f"⚠️ Gemini fallback to TF-IDF matching due to: {err_str}")
+                logger.warning(f"⚠️ Gemini failed ({str(e)}). Engaging Emergency TF-IDF Fallback...")
+                try:
                     return self._tfidf_match_by_text(job_description, limit, threshold, recruiter_id)
-                logger.error(f"❌ Error generating job embedding: {str(e)}")
-                return []
+                except Exception as tfidf_err:
+                    logger.error(f"❌ Both Neural and TF-IDF failed: {tfidf_err}")
+                    return []
             
             # Validate embedding
             if not job_embedding or not all(isinstance(x, (int, float)) and not (isinstance(x, float) and math.isnan(x)) for x in job_embedding):
@@ -599,11 +599,7 @@ class MatchingEngine:
                     job.save(update_fields=['cached_embedding'])
                     logger.info(f"✅ Generated & CACHED embedding for job {job_id}")
                 except Exception as emb_err:
-                    err_str = str(emb_err).lower()
-                    if any(k in err_str for k in ["429", "quota", "resource exhausted"]):
-                        logger.warning(f"⚠️  Gemini quota exceeded — TF-IDF fallback for job {job_id}")
-                    else:
-                        logger.error(f"❌ Embedding error: {emb_err}")
+                    logger.warning(f"⚠️  Neural engine unavailable ({str(emb_err)}) — Engaging TF-IDF fallback for job {job_id}")
                     use_tfidf = True
 
             # ── Tier 3: TF-IDF (pure Python, no quota, always works) ────

@@ -94,9 +94,10 @@ class EmbeddingService:
             )
             def _call_gemini_api(texts):
                 models_to_try = [
-                    ("models/embedding-001", False),      # Standard stable model (768 dims)
-                    ("models/text-embedding-004", True),  # Supports output_dimensionality
-                    ("embedding-001", False)              # Without prefix as fallback
+                    ("text-embedding-004", True),      # Latest stable
+                    ("models/text-embedding-004", True), # Prefixed stable
+                    ("embedding-001", False),           # Legacy fallback
+                    ("models/embedding-001", False)     # Prefixed legacy
                 ]
                 
                 last_err = None
@@ -164,9 +165,9 @@ class EmbeddingService:
 
         except Exception as e:
             logger.error(f"❌ Gemini Embedding Error: {str(e)}", exc_info=True)
-            # Fallback/Safety: Return zero vector to prevent crash if AI is down
-            zero_vec = [0.0] * 384
-            return [zero_vec] * len(text) if isinstance(text, list) else zero_vec
+            # 🛑 CRITICAL: Do NOT return zeroes. Zero vectors cause DivisionByZero in pgvector.
+            # We re-raise so the high-level match_candidates can fall back to TF-IDF.
+            raise e
 
     def get_embedding(self, text: str) -> List[float]:
         """Alias for encode() to maintain API compatibility."""
