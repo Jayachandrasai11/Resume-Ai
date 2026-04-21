@@ -52,20 +52,16 @@ const JobDetails = () => {
       const backendType = typeMap[selectedMode] || 'smart';
       const response = await http.get(`/jobs/${jobId}/match/?limit=20&threshold=0.1&strategy=cosine&type=${backendType}`);
       
-      // ✅ Handle direct array response from the new bulk-optimized backend
-      const results = Array.isArray(response.data) ? response.data : (response.data?.results || []);
-      
-      // 💾 PERSISTENCE LAYER: Save to session so we don't lose results on navigation sync
-      sessionStorage.setItem(`match_results_${jobId}`, JSON.stringify(results));
+      // 💾 PERSISTENCE LAYER: Only store the metadata, let the Results page poll for data
+      sessionStorage.removeItem(`match_results_${jobId}`); // Clear old results
       sessionStorage.setItem(`match_mode_${jobId}`, selectedMode);
 
       setSelectedJob(job);
-      setSearchResults(results);
       setIsSearchMode(true);
       setSearchType(selectedMode);
 
-      // 🏎️ Small buffer for state propagation
-      setTimeout(() => navigate(`/jobs/${jobId}/results`), 50);
+      // 🏎️ Immediate Navigation to the Polling UI
+      navigate(`/jobs/${jobId}/results`);
     } catch (err) {
       alert('Neural link interrupted. Please retry.');
     } finally {

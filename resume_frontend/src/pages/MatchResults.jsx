@@ -94,7 +94,7 @@ const MatchResults = () => {
     if (recoveryData) {
       try {
         const parsed = JSON.parse(recoveryData);
-        if (parsed && parsed.length > 0) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           store.setSearchResults(parsed);
           store.setIsSearchMode(true);
           if (recoveryMode) store.setSearchType(recoveryMode);
