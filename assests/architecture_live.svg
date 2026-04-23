@@ -1,0 +1,109 @@
+<svg width="1080" height="1080" viewBox="0 0 1080 1080" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <style>
+      text { font-family: sans-serif; }
+      @keyframes flow { to { stroke-dashoffset: -20; } }
+    </style>
+  </defs>
+
+  <rect width="1080" height="1080" rx="40" fill="#020617"/>
+  
+  <!-- Header -->
+  <g transform="translate(540, 100)">
+    <text text-anchor="middle" fill="#22D3EE" font-size="56" font-weight="bold">Resume Intelligence System</text>
+    <text y="50" text-anchor="middle" fill="#94A3B8" font-size="20">Full-Stack AI Recruitment Automation Platform</text>
+  </g>
+
+  <!-- Flow Paths -->
+  <path id="master_path" d="M300,430 L780,430 L780,550 L300,550 L300,690 L780,690" stroke="#1E293B" stroke-width="2" fill="none" style="stroke-dasharray: 5, 5; animation: flow 1s infinite linear;"/>
+
+  <!-- Layers -->
+  <g transform="translate(80, 320)">
+    <!-- Frontend -->
+    <rect width="440" height="240" rx="24" fill="#0F172A" stroke="#06B6D4" stroke-width="2" stroke-opacity="0.3"/>
+    <g transform="translate(30, 30)">
+      <text fill="#06B6D4" font-size="18" font-weight="bold">FRONTEND LAYER</text>
+      <text y="18" fill="#475569" font-size="10">React • Vite • Zustand • Tailwind</text>
+      <g transform="translate(0, 50)">
+        <rect width="180" height="35" rx="8" fill="#1E293B"/><text x="40" y="22" fill="#94A3B8" font-size="11">JWT Login</text>
+        <rect x="200" width="180" height="35" rx="8" fill="#1E293B"/><text x="240" y="22" fill="#94A3B8" font-size="11">Dashboard</text>
+        <rect y="40" width="180" height="35" rx="8" fill="#1E293B"/><text x="40" y="62" fill="#94A3B8" font-size="11">Resume Upload</text>
+        <rect x="200" y="40" width="180" height="35" rx="8" fill="#1E293B"/><text x="240" y="62" fill="#94A3B8" font-size="11">Candidate List</text>
+        <rect y="80" width="180" height="35" rx="8" fill="#1E293B"/><text x="40" y="102" fill="#94A3B8" font-size="11">AI Ranking</text>
+        <rect x="200" y="80" width="180" height="35" rx="8" fill="#1E293B"/><text x="240" y="102" fill="#94A3B8" font-size="11">Resume Chat</text>
+      </g>
+    </g>
+
+    <!-- Backend -->
+    <g transform="translate(480, 0)">
+      <rect width="440" height="240" rx="24" fill="#0F172A" stroke="#3B82F6" stroke-width="2" stroke-opacity="0.3"/>
+      <g transform="translate(30, 30)">
+        <text fill="#3B82F6" font-size="18" font-weight="bold">BACKEND CORE</text>
+        <text y="18" fill="#475569" font-size="10">Django • DRF • Gunicorn • JWT</text>
+        <g transform="translate(0, 50)">
+          <rect width="180" height="35" rx="8" fill="#1E293B"/><text x="40" y="22" fill="#94A3B8" font-size="11">Auth API</text>
+          <rect x="200" width="180" height="35" rx="8" fill="#1E293B"/><text x="240" y="22" fill="#94A3B8" font-size="11">Resume Parser</text>
+          <rect y="40" width="180" height="35" rx="8" fill="#1E293B"/><text x="40" y="62" fill="#94A3B8" font-size="11">Job Engine</text>
+          <rect x="200" y="40" width="180" height="35" rx="8" fill="#1E293B"/><text x="240" y="62" fill="#94A3B8" font-size="11">Match Engine</text>
+          <rect y="80" width="180" height="35" rx="8" fill="#1E293B"/><text x="40" y="102" fill="#94A3B8" font-size="11">Analytics API</text>
+          <rect x="200" y="80" width="180" height="35" rx="8" fill="#1E293B"/><text x="240" y="102" fill="#94A3B8" font-size="11">Chat Service</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- AI Engine -->
+    <g transform="translate(0, 300)">
+      <rect width="440" height="240" rx="24" fill="#0F172A" stroke="#8B5CF6" stroke-width="2" stroke-opacity="0.3"/>
+      <g transform="translate(30, 30)">
+        <text fill="#8B5CF6" font-size="18" font-weight="bold">AI ENGINE</text>
+        <text y="18" fill="#475569" font-size="10">NLP • LLM • ML</text>
+        <g transform="translate(0, 50)">
+          <rect width="180" height="35" rx="8" fill="#1E293B"/><text x="40" y="22" fill="#94A3B8" font-size="11">Gemini API</text>
+          <rect x="200" width="180" height="35" rx="8" fill="#1E293B"/><text x="240" y="22" fill="#94A3B8" font-size="11">Embeddings</text>
+          <rect y="40" width="180" height="35" rx="8" fill="#1E293B"/><text x="40" y="62" fill="#94A3B8" font-size="11">Semantic Search</text>
+          <rect x="200" y="40" width="180" height="35" rx="8" fill="#1E293B"/><text x="240" y="62" fill="#94A3B8" font-size="11">RAG Chat</text>
+          <rect y="80" width="180" height="35" rx="8" fill="#1E293B"/><text x="40" y="102" fill="#94A3B8" font-size="11">Interview AI</text>
+          <rect x="200" y="80" width="180" height="35" rx="8" fill="#1E293B"/><text x="240" y="102" fill="#94A3B8" font-size="11">Smart Ranking</text>
+        </g>
+      </g>
+    </g>
+
+    <!-- Database -->
+    <g transform="translate(480, 300)">
+      <rect width="440" height="240" rx="24" fill="#0F172A" stroke="#10B981" stroke-width="2"/>
+      <g transform="translate(30, 30)">
+        <text fill="#10B981" font-size="18" font-weight="bold">DATABASE</text>
+        <text y="18" fill="#475569" font-size="10">PostgreSQL</text>
+        <g transform="translate(0, 50)">
+          <rect width="110" height="30" rx="4" fill="#1E293B"/><text x="55" y="20" text-anchor="middle" fill="#10B981" font-size="10">users</text>
+          <rect x="125" width="110" height="30" rx="4" fill="#1E293B"/><text x="180" y="20" text-anchor="middle" fill="#10B981" font-size="10">candidates</text>
+          <rect x="250" width="110" height="30" rx="4" fill="#1E293B"/><text x="305" y="20" text-anchor="middle" fill="#10B981" font-size="10">resumes</text>
+          <rect y="40" width="110" height="30" rx="4" fill="#1E293B"/><text x="55" y="60" text-anchor="middle" fill="#10B981" font-size="10">jobs</text>
+          <rect x="125" y="40" width="110" height="30" rx="4" fill="#1E293B"/><text x="180" y="60" text-anchor="middle" fill="#10B981" font-size="10">embeddings</text>
+          <rect x="250" y="40" width="110" height="30" rx="4" fill="#1E293B"/><text x="305" y="60" text-anchor="middle" fill="#10B981" font-size="10">sessions</text>
+          <rect y="90" width="360" height="40" rx="12" fill="#1E293B" stroke="#10B981" stroke-opacity="0.3"/>
+          <text x="180" y="115" text-anchor="middle" fill="#10B981" font-size="14" font-weight="bold">Supabase Storage • pgvector</text>
+        </g>
+      </g>
+    </g>
+  </g>
+
+  <!-- NATIVE ANIMATION (SMIL) -->
+  <circle r="12" fill="#22D3EE">
+    <animateMotion dur="6s" repeatCount="indefinite" path="M300,430 L780,430 L780,550 L300,550 L300,690 L780,690" />
+  </circle>
+
+  <!-- Stepper -->
+  <g transform="translate(80, 880)">
+    <rect width="920" height="60" rx="12" fill="#0F172A" stroke="#1E293B"/>
+    <text x="460" y="35" text-anchor="middle" fill="#94A3B8" font-size="14" font-weight="bold">1 User Login → 2 Upload Resume → 3 AI Parse → 4 Embedding → 5 Match → 6 Results</text>
+  </g>
+
+  <!-- Metrics -->
+  <g transform="translate(80, 960)">
+    <rect width="210" height="80" rx="16" fill="#1E293B"/><text x="105" y="40" text-anchor="middle" fill="white" font-size="18" font-weight="bold">80% Faster</text>
+    <g transform="translate(230,0)"><rect width="210" height="80" rx="16" fill="#1E293B"/><text x="105" y="40" text-anchor="middle" fill="white" font-size="18" font-weight="bold">95% Match</text></g>
+    <g transform="translate(460,0)"><rect width="210" height="80" rx="16" fill="#1E293B"/><text x="105" y="40" text-anchor="middle" fill="white" font-size="18" font-weight="bold">10x Output</text></g>
+    <g transform="translate(690,0)"><rect width="210" height="80" rx="16" fill="#1E293B"/><text x="105" y="40" text-anchor="middle" fill="white" font-size="18" font-weight="bold">100% Cloud</text></g>
+  </g>
+</svg>
