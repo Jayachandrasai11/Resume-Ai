@@ -2,6 +2,10 @@
  AI-Powered Recruitment Automation Platform
 
 > Transforming unstructured resumes into intelligent hiring decisions using AI, vector search, and scalable full-stack architecture.
+<p align="center">
+  <img width="1080" height="1080" alt="Architecture Animation" src="assets/architecture_live.svg" />
+</p>
+
 
 ---
 
